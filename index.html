@@ -175,6 +175,7 @@
   <!-- PAGE 1: Main Selection Page -->
   <div id="page1" class="page active">
     <h1 class="main-title">Device Migration</h1>
+
     <div class="cards-container">
       <div class="transfer-card">
         <div class="icon-box">&#10132;</div>
@@ -266,14 +267,14 @@
     </div>
   </div>
 
-  <!-- PAGE 7: Terminal State (Failure or Success) -->
+  <!-- PAGE 7: Terminal Outcome View -->
   <div id="page7" class="page">
     <h1 class="main-title" id="p7Title" style="color: #ef4444;">Migration Failed</h1>
     <div class="complete-box" id="p7Box" style="border-color: #ef4444;">
       <div class="check-icon" id="p7Icon" style="color: #ef4444;">&#10006;</div>
       <div class="status-text" id="p7Status" style="color: #ef4444;">Device Not Compatible</div>
       <p class="time-text" id="p7Desc" style="color: #8e8e93; margin-top: 12px; line-height: 1.5;">
-        The target device does not meet the system or hardware requirements to receive this data. Please ensure both devices are running supported OS versions.
+        The target device does not meet the system or hardware requirements to receive this data.
       </p>
       <div class="action-container">
         <button class="btn-proceed-small" id="p7Btn" style="background-color: #ef4444;" onclick="goBack()">Exit & Go Back</button>
@@ -284,8 +285,10 @@
 </div>
 
 <script>
-  // Fallback defaults
-  let config = {
+  // Optional: Place the matching API endpoint here if using a remote server
+  const API_ENDPOINT = "";
+
+  let runtimeConfig = {
     initialKey: '4444',
     adminKey: '5048',
     transferSec: 60,
@@ -295,24 +298,34 @@
     finalStatus: 'fail'
   };
 
-  // --- CONFIG LOADER ---
-  function loadConfig() {
-    const raw = localStorage.getItem('device_migration_config');
-    if (raw) {
-      try { config = Object.assign(config, JSON.parse(raw)); } catch(e) {}
+  async function syncConfig() {
+    if (API_ENDPOINT) {
+      try {
+        const res = await fetch(API_ENDPOINT);
+        const data = await res.json();
+        if (data) runtimeConfig = Object.assign(runtimeConfig, data);
+      } catch (e) {}
+    } else {
+      const local = localStorage.getItem('device_migration_config');
+      if (local) {
+        try { runtimeConfig = Object.assign(runtimeConfig, JSON.parse(local)); } catch(e) {}
+      }
     }
-    // Update Page 1 IDs
-    document.getElementById('displaySourceId').innerText = 'DEVICE ID: ' + config.sourceId;
-    document.getElementById('displayTargetId').innerText = 'DEVICE ID: ' + config.targetId;
+    // Update IDs
+    document.getElementById('displaySourceId').innerText = 'DEVICE ID: ' + runtimeConfig.sourceId;
+    document.getElementById('displayTargetId').innerText = 'DEVICE ID: ' + runtimeConfig.targetId;
   }
-  window.addEventListener('DOMContentLoaded', loadConfig);
-  // ---------------------
+
+  window.addEventListener('DOMContentLoaded', () => {
+    syncConfig();
+    setInterval(syncConfig, 3000); // Polling sync
+  });
 
   let progressInterval3;
   let progressInterval6;
 
-  function goToPasswordPage() {
-    loadConfig(); // Refresh config
+  async function goToPasswordPage() {
+    await syncConfig();
     document.getElementById('page1').classList.remove('active');
     document.getElementById('page2').classList.add('active');
     document.getElementById('backBtn').style.display = 'inline-block';
@@ -321,21 +334,23 @@
   function goBack() {
     clearInterval(progressInterval3);
     clearInterval(progressInterval6);
+
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page1').classList.add('active');
     document.getElementById('backBtn').style.display = 'none';
-    
+
     document.getElementById('passkeyInput').value = '';
     document.getElementById('installPasskeyInput').value = '';
     document.getElementById('errorMsg').style.display = 'none';
     document.getElementById('installErrorMsg').style.display = 'none';
   }
 
-  function verifyInitialPassword() {
+  async function verifyInitialPassword() {
+    await syncConfig();
     const input = document.getElementById('passkeyInput').value;
     const errorMsg = document.getElementById('errorMsg');
 
-    if (input !== config.initialKey) {
+    if (input !== runtimeConfig.initialKey) {
       errorMsg.style.display = 'block';
       return;
     }
@@ -347,8 +362,8 @@
   }
 
   function startTransferAnimation() {
-    const totalSeconds = config.transferSec;
-    let elapsed = 0;
+    const totalTimeSeconds = runtimeConfig.transferSec;
+    let secondsElapsed = 0;
 
     const fill = document.getElementById('progressFill3');
     const percentText = document.getElementById('percentText3');
@@ -358,15 +373,15 @@
     percentText.innerText = '0%';
 
     progressInterval3 = setInterval(() => {
-      elapsed++;
-      const percent = Math.floor((elapsed / totalSeconds) * 100);
-      const remaining = totalSeconds - elapsed;
+      secondsElapsed++;
+      const percentage = Math.floor((secondsElapsed / totalTimeSeconds) * 100);
+      const remaining = totalTimeSeconds - secondsElapsed;
 
-      fill.style.width = percent + '%';
-      percentText.innerText = percent + '%';
+      fill.style.width = percentage + '%';
+      percentText.innerText = percentage + '%';
       timeText.innerText = `About ${remaining} seconds remaining`;
 
-      if (elapsed >= totalSeconds) {
+      if (secondsElapsed >= totalTimeSeconds) {
         clearInterval(progressInterval3);
         setTimeout(() => {
           document.getElementById('page3').classList.remove('active');
@@ -381,11 +396,12 @@
     document.getElementById('page5').classList.add('active');
   }
 
-  function verifyInstallPassword() {
+  async function verifyInstallPassword() {
+    await syncConfig();
     const input = document.getElementById('installPasskeyInput').value;
     const errorMsg = document.getElementById('installErrorMsg');
 
-    if (input !== config.adminKey) {
+    if (input !== runtimeConfig.adminKey) {
       errorMsg.style.display = 'block';
       return;
     }
@@ -397,8 +413,8 @@
   }
 
   function startInstallationAnimation() {
-    const totalSeconds = config.installSec;
-    let elapsed = 0;
+    const totalTimeSeconds = runtimeConfig.installSec;
+    let secondsElapsed = 0;
 
     const fill = document.getElementById('progressFill6');
     const percentText = document.getElementById('percentText6');
@@ -408,42 +424,43 @@
     percentText.innerText = '0%';
 
     progressInterval6 = setInterval(() => {
-      elapsed++;
-      const percent = Math.floor((elapsed / totalSeconds) * 100);
-      const remaining = totalSeconds - elapsed;
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
+      secondsElapsed++;
+      const percentage = Math.floor((secondsElapsed / totalTimeSeconds) * 100);
+      const remainingSeconds = totalTimeSeconds - secondsElapsed;
 
-      fill.style.width = percent + '%';
-      percentText.innerText = percent + '%';
+      const mins = Math.floor(remainingSeconds / 60);
+      const secs = remainingSeconds % 60;
+
+      fill.style.width = percentage + '%';
+      percentText.innerText = percentage + '%';
       timeText.innerText = `About ${mins}m ${secs}s remaining`;
 
-      if (elapsed >= totalSeconds) {
+      if (secondsElapsed >= totalTimeSeconds) {
         clearInterval(progressInterval6);
         setTimeout(() => {
           document.getElementById('page6').classList.remove('active');
-          setupPage7();
+          applyOutcomeSettings();
           document.getElementById('page7').classList.add('active');
         }, 500);
       }
     }, 1000);
   }
 
-  function setupPage7() {
-    const isSuccess = config.finalStatus === 'success';
-    const color = isSuccess ? '#22c55e' : '#ef4444';
-    
-    document.getElementById('p7Title').style.color = color;
+  function applyOutcomeSettings() {
+    const isSuccess = runtimeConfig.finalStatus === 'success';
+    const accent = isSuccess ? '#22c55e' : '#ef4444';
+
+    document.getElementById('p7Title').style.color = accent;
     document.getElementById('p7Title').innerText = isSuccess ? 'Migration Complete' : 'Migration Failed';
-    document.getElementById('p7Box').style.borderColor = color;
-    document.getElementById('p7Icon').style.color = color;
+    document.getElementById('p7Box').style.borderColor = accent;
+    document.getElementById('p7Icon').style.color = accent;
     document.getElementById('p7Icon').innerHTML = isSuccess ? '&#10004;' : '&#10006;';
-    document.getElementById('p7Status').style.color = color;
+    document.getElementById('p7Status').style.color = accent;
     document.getElementById('p7Status').innerText = isSuccess ? 'All Data Restored' : 'Device Not Compatible';
-    document.getElementById('p7Desc').innerText = isSuccess 
-      ? 'All files, settings, and media have been successfully transferred and applied to this device.'
+    document.getElementById('p7Desc').innerText = isSuccess
+      ? 'All files, logs, and account records have been installed and verified on this device.'
       : 'The target device does not meet the system or hardware requirements to receive this data. Please ensure both devices are running supported OS versions.';
-    document.getElementById('p7Btn').style.backgroundColor = color;
+    document.getElementById('p7Btn').style.backgroundColor = accent;
   }
 
   document.getElementById('passkeyInput').addEventListener('keyup', (e) => {

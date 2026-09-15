@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Console - Admin</title>
+  <title>Admin Control Console</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -14,6 +14,7 @@
       padding: 24px 16px;
       display: flex;
       justify-content: center;
+      min-height: 100vh;
     }
     .admin-container { width: 100%; max-width: 480px; }
     .header { margin-bottom: 24px; border-bottom: 1px solid #2c2c2e; padding-bottom: 16px; }
@@ -74,14 +75,65 @@
       text-align: center;
       font-weight: 600;
     }
+
+    /* Login Modal */
+    #loginGate {
+      position: fixed;
+      inset: 0;
+      background: #000000;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-box {
+      background: #1c1c1e;
+      padding: 28px 20px;
+      border-radius: 16px;
+      border: 1px solid #2c2c2e;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+    .login-box h3 { font-size: 18px; margin-bottom: 6px; }
+    .login-box p { font-size: 13px; color: #8e8e93; margin-bottom: 18px; }
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .pin-error {
+      color: #ef4444;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
 
+<!-- Master Authentication Gate -->
+<div id="loginGate">
+  <div class="login-box">
+    <h3>Admin Authorization</h3>
+    <p>Enter master PIN to manage configurations.</p>
+    <input type="password" id="masterPinInput" placeholder="Enter PIN" maxlength="8" style="text-align: center; letter-spacing: 4px; font-size: 18px; margin-bottom: 14px;" />
+    <button class="login-btn" onclick="unlockPanel()">Unlock Console</button>
+    <div id="pinError" class="pin-error">Incorrect PIN. Access denied.</div>
+  </div>
+</div>
+
 <div class="admin-container">
   <div class="header">
     <h1>Configuration Console</h1>
-    <p>Manage system passkeys, timers, and failure routes.</p>
+    <p>Manage client passcodes, durations, and outcomes.</p>
   </div>
 
   <div id="toast" class="status-toast">Settings successfully updated!</div>
@@ -99,7 +151,7 @@
   </div>
 
   <div class="card">
-    <div class="card-title">Simulation Timers (Seconds)</div>
+    <div class="card-title">Process Timers (Seconds)</div>
     <div class="input-row">
       <div class="form-group" style="flex: 1;">
         <label for="transferSec">Phase 1 Transfer</label>
@@ -113,7 +165,7 @@
   </div>
 
   <div class="card">
-    <div class="card-title">Device IDs</div>
+    <div class="card-title">Device Identifiers</div>
     <div class="form-group">
       <label for="sourceId">Source Device ID</label>
       <input type="text" id="sourceId" placeholder="e.g. 557278992656998" />
@@ -127,7 +179,7 @@
   <div class="card">
     <div class="card-title">Terminal State (Page 7)</div>
     <div class="form-group">
-      <label for="finalStatus">Post-Installation Behavior</label>
+      <label for="finalStatus">Post-Installation Outcome</label>
       <select id="finalStatus">
         <option value="fail">Fail (Device Not Compatible)</option>
         <option value="success">Success (Migration Complete)</option>
@@ -142,7 +194,12 @@
 </div>
 
 <script>
-  // Default values
+  // Master PIN for access
+  const MASTER_PIN = "1234";
+
+  // Optional: Place your Firebase or JSON API endpoint here
+  const API_ENDPOINT = ""; 
+
   const defaultSettings = {
     initialKey: '4444',
     adminKey: '5048',
@@ -153,29 +210,50 @@
     finalStatus: 'fail'
   };
 
-  // --- STORAGE LAYER (Swap to Firebase fetch() later if needed) ---
-  function getStoredConfig() {
-    const raw = localStorage.getItem('device_migration_config');
-    return raw ? JSON.parse(raw) : defaultSettings;
+  function unlockPanel() {
+    const entered = document.getElementById("masterPinInput").value;
+    if (entered === MASTER_PIN) {
+      document.getElementById("loginGate").style.display = "none";
+      sessionStorage.setItem("admin_auth", "true");
+      loadSettings();
+    } else {
+      document.getElementById("pinError").style.display = "block";
+    }
   }
 
-  function setStoredConfig(data) {
-    localStorage.setItem('device_migration_config', JSON.stringify(data));
-  }
-  // -------------------------------------------------------------
+  document.getElementById("masterPinInput").addEventListener("keyup", (e) => {
+    if (e.key === "Enter") unlockPanel();
+  });
 
-  function loadSettings() {
-    const config = getStoredConfig();
-    document.getElementById('initialKey').value = config.initialKey;
-    document.getElementById('adminKey').value = config.adminKey;
-    document.getElementById('transferSec').value = config.transferSec;
-    document.getElementById('installSec').value = config.installSec;
-    document.getElementById('sourceId').value = config.sourceId;
-    document.getElementById('targetId').value = config.targetId;
-    document.getElementById('finalStatus').value = config.finalStatus;
+  async function loadSettings() {
+    let config = defaultSettings;
+
+    // Check remote backend if configured
+    if (API_ENDPOINT) {
+      try {
+        const res = await fetch(API_ENDPOINT);
+        const remote = await res.json();
+        if (remote) config = remote;
+      } catch (err) {
+        console.warn("Using local cache fallback.");
+      }
+    } else {
+      const local = localStorage.getItem('device_migration_config');
+      if (local) {
+        try { config = JSON.parse(local); } catch(e) {}
+      }
+    }
+
+    document.getElementById('initialKey').value = config.initialKey || defaultSettings.initialKey;
+    document.getElementById('adminKey').value = config.adminKey || defaultSettings.adminKey;
+    document.getElementById('transferSec').value = config.transferSec || defaultSettings.transferSec;
+    document.getElementById('installSec').value = config.installSec || defaultSettings.installSec;
+    document.getElementById('sourceId').value = config.sourceId || defaultSettings.sourceId;
+    document.getElementById('targetId').value = config.targetId || defaultSettings.targetId;
+    document.getElementById('finalStatus').value = config.finalStatus || defaultSettings.finalStatus;
   }
 
-  function saveSettings() {
+  async function saveSettings() {
     const config = {
       initialKey: document.getElementById('initialKey').value || defaultSettings.initialKey,
       adminKey: document.getElementById('adminKey').value || defaultSettings.adminKey,
@@ -183,14 +261,29 @@
       installSec: parseInt(document.getElementById('installSec').value, 10) || defaultSettings.installSec,
       sourceId: document.getElementById('sourceId').value || defaultSettings.sourceId,
       targetId: document.getElementById('targetId').value || defaultSettings.targetId,
-      finalStatus: document.getElementById('finalStatus').value
+      finalStatus: document.getElementById('finalStatus').value,
+      updatedAt: Date.now()
     };
 
-    setStoredConfig(config);
+    // Always update local cache
+    localStorage.setItem('device_migration_config', JSON.stringify(config));
+
+    // Update remote if endpoint exists
+    if (API_ENDPOINT) {
+      try {
+        await fetch(API_ENDPOINT, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+      } catch (err) {
+        console.error("Failed to push to remote API", err);
+      }
+    }
 
     const toast = document.getElementById('toast');
     toast.style.display = 'block';
-    setTimeout(() => { toast.style.display = 'none'; }, 2000);
+    setTimeout(() => { toast.style.display = 'none'; }, 2200);
   }
 
   function resetDefaults() {
@@ -198,7 +291,12 @@
     loadSettings();
   }
 
-  window.addEventListener('DOMContentLoaded', loadSettings);
+  window.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem("admin_auth") === "true") {
+      document.getElementById("loginGate").style.display = "none";
+      loadSettings();
+    }
+  });
 </script>
 </body>
 </html>

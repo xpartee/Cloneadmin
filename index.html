@@ -60,12 +60,19 @@
     .list-icon { color: #8e8e93; font-size: 18px; width: 24px; text-align: center; }
     .list-text { font-size: 16px; font-weight: 500; }
 
+    /* --- Global Button Hover (Black Background) --- */
+    button:hover, .btn:hover, .proceed-btn:hover {
+      background-color: #000000 !important;
+      color: #ffffff !important;
+      border: 1px solid #3a3a3c !important;
+      transition: all 0.2s ease;
+    }
+
     .proceed-btn {
       background-color: #4ade80; color: #000000; border: none;
       width: 100%; padding: 18px; border-radius: 30px;
       font-size: 16px; font-weight: 700; cursor: pointer; text-align: center; transition: background 0.2s;
     }
-    .proceed-btn:hover { background-color: #22c55e; }
 
     /* --- Activation Screen --- */
     #activationView .auth-box {
@@ -110,12 +117,35 @@
     .btn-auth { background-color: #3b82f6; color: #ffffff; }
     .btn-secondary { background-color: #2c2c2e; color: #ffffff; margin-top: 10px; }
     .error-msg { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
-    .toast { display: none; background-color: #22c55e22; border: 1px solid #22c55e; color: #22c55e; padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; text-align: center; font-weight: 600; }
+
+    /* --- Fixed Toast Notification --- */
+    .toast {
+      display: none;
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      background-color: #22c55e;
+      color: #ffffff;
+      padding: 14px 24px;
+      border-radius: 30px;
+      font-size: 14px;
+      text-align: center;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      width: 90%;
+      max-width: 400px;
+    }
+    .toast.error { background-color: #ef4444; }
   </style>
 </head>
 <body>
 
-  <!-- TOGGLE BUTTON (Kept for convenience but hidden on activation screen) -->
+  <!-- FIXED TOAST NOTIFICATION -->
+  <div id="toast" class="toast">Configuration saved to Firebase!</div>
+
+  <!-- TOGGLE BUTTON -->
   <div class="admin-toggle" id="viewToggle" onclick="toggleView()">⚙️ Admin Panel</div>
 
   <!-- ================= ACTIVATION SCREEN ================= -->
@@ -129,11 +159,9 @@
       <button class="btn btn-primary" onclick="verifyActivationCode()">Activate</button>
       <div id="activationError" class="error-msg" style="text-align:center;"></div>
       
-      <!-- NEW ADMIN LOGIN LINK ADDED HERE -->
       <div style="margin-top: 24px; font-size: 14px;">
         <span style="color: #3b82f6; cursor: pointer; font-weight: 500;" onclick="toggleView()">Login as Admin</span>
       </div>
-
     </div>
   </div>
 
@@ -202,8 +230,6 @@
     </div>
 
     <div id="panelSection" class="hidden">
-      <div id="toast" class="toast">Configuration saved to Firebase!</div>
-
       <div class="admin-card">
         <h2>Edit Client Screen</h2>
         <p class="sub" id="userEmailDisplay"></p>
@@ -252,6 +278,7 @@
     storageBucket: "cloneadmin-720cf.firebasestorage.app",
     messagingSenderId: "894712205413",
     appId: "1:894712205413:web:1a3843b339f51cbff7368c",
+    // IMPORTANT: Ensure this URL matches the Realtime Database URL in your Firebase Console
     databaseURL: "https://cloneadmin-720cf-default-rtdb.firebaseio.com" 
   };
 
@@ -267,6 +294,21 @@
   let totalSeconds = 0;
   let currentSeconds = 0;
 
+  // --- HELPER: Show Toast ---
+  function showToast(message, isError = false) {
+    const toast = document.getElementById('toast');
+    toast.innerText = message;
+    toast.style.display = 'block';
+    if (isError) {
+      toast.classList.add('error');
+    } else {
+      toast.classList.remove('error');
+    }
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, 3000);
+  }
+
   // --- UI TOGGLING ---
   function toggleView() {
     isAdminView = !isAdminView;
@@ -277,7 +319,6 @@
       document.getElementById('viewToggle').innerText = '📱 View Client App';
     } else {
       document.getElementById('adminView').classList.add('hidden');
-      // Check if client was already activated
       if (sessionStorage.getItem('isActivated') === 'true') {
         document.getElementById('clientView').classList.remove('hidden');
         document.getElementById('activationView').classList.add('hidden');
@@ -451,8 +492,9 @@
   }
 
   function saveSettings() {
+    // Collect data with fallbacks to prevent null errors
     const payload = {
-      activationCode: document.getElementById('a_activationCode').value.trim(),
+      activationCode: document.getElementById('a_activationCode').value.trim() || "1234",
       headerText: document.getElementById('a_headerText').value,
       title: document.getElementById('a_title').value,
       backText: document.getElementById('a_backText').value,
@@ -469,13 +511,15 @@
       updatedAt: Date.now()
     };
 
+    // Save to Firebase Realtime Database
     DATA_REF.set(payload)
       .then(() => {
-        const toast = document.getElementById('toast');
-        toast.style.display = 'block';
-        setTimeout(() => toast.style.display = 'none', 2000);
+        showToast("Configuration saved successfully!");
       })
-      .catch(err => alert("Error saving: " + err.message));
+      .catch(err => {
+        console.error("Firebase Save Error: ", err);
+        showToast("Error saving: " + err.message, true);
+      });
   }
 </script>
 </body>

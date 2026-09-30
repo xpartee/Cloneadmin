@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal</title>
+  <title>Device Migration App</title>
 
   <!-- Firebase Compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -13,153 +13,129 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #0b0b0c;
+      background-color: #000000; /* Match the app's dark background */
       color: #ffffff;
-      padding: 24px 16px;
-      display: flex;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    .container {
-      width: 100%;
-      max-width: 400px;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      align-items: center;
+      min-height: 100vh;
     }
-    .view-panel { display: none; flex-direction: column; }
-    .view-panel.active { display: flex; }
 
+    /* --- Global Helpers --- */
+    .hidden { display: none !important; }
+    .container { width: 100%; max-width: 440px; padding: 20px; }
+    
+    /* --- Client Portal Styles (Matches Image) --- */
+    .client-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; margin-top: 10px; }
+    .back-btn { color: #3b82f6; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+    .header-sub { color: #8e8e93; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    .client-title { font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 30px; }
+    
     .card {
       background-color: #1c1c1e;
-      border: 1px solid #2c2c2e;
-      border-radius: 16px;
-      padding: 28px 20px;
+      border-radius: 20px;
+      padding: 24px;
       margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
     }
-    h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
-    p.sub { font-size: 13px; color: #8e8e93; margin-bottom: 20px; line-height: 1.4; }
-    
+    .icon-box {
+      background-color: #3b82f6;
+      width: 56px; height: 56px;
+      border-radius: 16px;
+      display: flex; justify-content: center; align-items: center;
+      margin-bottom: 16px;
+      color: white; font-size: 24px;
+    }
+    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .card-sub { font-size: 12px; color: #8e8e93; letter-spacing: 0.5px; text-transform: uppercase; }
+
+    .list-container { margin-top: 24px; margin-bottom: 40px; }
+    .list-item { display: flex; align-items: center; gap: 16px; padding: 18px 0; border-bottom: 1px solid #2c2c2e; }
+    .list-item:last-child { border-bottom: none; }
+    .list-icon { color: #8e8e93; font-size: 18px; width: 24px; text-align: center; }
+    .list-text { font-size: 16px; font-weight: 500; }
+
+    .proceed-btn {
+      background-color: #4ade80; color: #000000; border: none;
+      width: 100%; padding: 18px; border-radius: 30px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      text-align: center; transition: background 0.2s;
+    }
+    .proceed-btn:hover { background-color: #22c55e; }
+
+    /* --- Admin Panel Styles --- */
+    .admin-toggle { position: absolute; top: 20px; right: 20px; color: #8e8e93; cursor: pointer; font-size: 14px; text-decoration: underline; }
+    .admin-card { background-color: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 16px; padding: 24px 20px; margin-bottom: 16px; }
+    .admin-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .admin-card p.sub { font-size: 13px; color: #8e8e93; margin-bottom: 20px; }
     .form-group { display: flex; flex-direction: column; margin-bottom: 14px; }
-    label { font-size: 13px; color: #8e8e93; margin-bottom: 6px; }
+    label { font-size: 12px; color: #8e8e93; margin-bottom: 6px; font-weight: 500; }
     input, select {
-      width: 100%;
-      padding: 14px;
-      background-color: #000000;
-      border: 1px solid #3a3a3c;
-      border-radius: 10px;
-      color: #ffffff;
-      font-size: 15px;
-      outline: none;
+      width: 100%; padding: 12px 14px; background-color: #000000;
+      border: 1px solid #3a3a3c; border-radius: 10px;
+      color: #ffffff; font-size: 14px; outline: none;
     }
     input:focus, select:focus { border-color: #3b82f6; }
-
-    .code-input {
-      letter-spacing: 4px;
-      text-align: center;
-      font-size: 18px;
-      font-weight: 600;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 14px;
-      border-radius: 10px;
-      border: none;
-      font-weight: 700;
-      font-size: 14px;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-    .btn-primary { background-color: #3b82f6; color: #ffffff; }
-    .btn-green { background-color: #22c55e; color: #ffffff; }
-    .btn-secondary { background-color: #2c2c2e; color: #8e8e93; margin-top: 10px; }
-
-    .footer-link-box {
-      text-align: center;
-      padding: 20px 0;
-    }
-    .subtle-link {
-      background: none;
-      border: none;
-      color: #555558;
-      font-size: 12px;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-    .subtle-link:hover { color: #8e8e93; }
-
-    .error-msg { color: #ef4444; font-size: 13px; margin-top: 10px; text-align: center; display: none; }
-    .toast {
-      display: none;
-      background-color: #22c55e22;
-      border: 1px solid #22c55e;
-      color: #22c55e;
-      padding: 12px;
-      border-radius: 10px;
-      font-size: 13px;
-      margin-bottom: 16px;
-      text-align: center;
-      font-weight: 600;
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      margin-top: 10px;
-    }
+    .btn { width: 100%; padding: 14px; border-radius: 10px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 8px; }
+    .btn-primary { background-color: #22c55e; color: #ffffff; }
+    .btn-auth { background-color: #3b82f6; color: #ffffff; }
+    .btn-secondary { background-color: #2c2c2e; color: #ffffff; margin-top: 10px; }
+    .error-msg { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
+    .toast { display: none; background-color: #22c55e22; border: 1px solid #22c55e; color: #22c55e; padding: 12px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; text-align: center; font-weight: 600; }
   </style>
 </head>
 <body>
 
-<div class="container">
+  <!-- TOGGLE BUTTON -->
+  <div class="admin-toggle" id="viewToggle" onclick="toggleView()">⚙️ Admin Panel</div>
 
-  <!-- ================= VIEW 1: CLIENT ACCESS GATE (DEFAULT) ================= -->
-  <div id="clientGateView" class="view-panel active">
-    <div class="card" style="margin-top: 40px; text-align: center;">
-      <h2>Client Authorization</h2>
-      <p class="sub">Enter your provided access passcode to enter</p>
-      
-      <div class="form-group">
-        <input type="text" id="clientAccessInput" class="code-input" placeholder="ACCESS CODE" maxlength="12" autocomplete="off" />
-      </div>
-
-      <button class="btn btn-green" onclick="handleClientSubmit()">Verify & Enter</button>
-      <div id="clientError" class="error-msg">Invalid passcode. Please request a valid code.</div>
+  <!-- ================= CLIENT PORTAL (Matches Image) ================= -->
+  <div id="clientView" class="container">
+    <div class="client-header">
+      <span class="back-btn" id="c_backText">← Back</span>
+      <span class="header-sub" id="c_headerText">DATA TRANSFER ASSISTANT</span>
     </div>
 
-    <!-- SUBTLE ADMIN ENTRY AT THE BOTTOM -->
-    <div class="footer-link-box">
-      <button class="subtle-link" onclick="openAdminLogin()">Log in as Administrator</button>
+    <h1 class="client-title" id="c_title">Device Migration</h1>
+
+    <!-- Send Card -->
+    <div class="card">
+      <div class="icon-box">→</div>
+      <h2 class="card-title" id="c_sendTitle">Send data from this device</h2>
+      <p class="card-sub">DEVICE ID: <span id="c_sendId">557278992656998</span></p>
     </div>
+
+    <!-- Receive Card -->
+    <div class="card">
+      <div class="icon-box">↻</div>
+      <h2 class="card-title" id="c_receiveTitle">Receive data on this device</h2>
+      <p class="card-sub">DEVICE ID: <span id="c_receiveId">352703943015910</span></p>
+    </div>
+
+    <!-- List Items -->
+    <div class="list-container" id="c_listContainer">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Proceed Button -->
+    <button class="proceed-btn" id="c_btnText">PROCEED</button>
+    <br><br>
   </div>
 
-  <!-- ================= VIEW 2: CLIENT INSIDE / DASHBOARD ================= -->
-  <div id="clientDashboardView" class="view-panel">
-    <div class="card" style="margin-top: 40px; text-align: center;">
-      <h2 style="color: #22c55e;">Access Granted</h2>
-      <p class="sub">Connected to system session</p>
-      
-      <div style="background: #000; border: 1px solid #2c2c2e; border-radius: 12px; padding: 20px; margin: 16px 0;">
-        <div style="font-size: 13px; color: #8e8e93; margin-bottom: 6px;">Live Status:</div>
-        <div id="clientLiveStatus" style="font-size: 16px; font-weight: 700;">Loading...</div>
-      </div>
 
-      <button class="btn btn-secondary" onclick="exitClientSession()">Sign Out</button>
-    </div>
-  </div>
-
-  <!-- ================= VIEW 3: ADMIN FIREBASE LOGIN ================= -->
-  <div id="adminLoginView" class="view-panel">
-    <div class="card" style="margin-top: 40px;">
+  <!-- ================= ADMIN PANEL ================= -->
+  <div id="adminView" class="container hidden">
+    
+    <!-- LOGIN SECTION -->
+    <div id="authSection" class="admin-card">
       <h2>Admin Login</h2>
-      <p class="sub">Sign in with your Firebase admin email and password.</p>
-      
+      <p class="sub">Sign in to edit the client portal screen.</p>
       <div class="form-group">
         <label>Admin Email</label>
         <input type="email" id="adminEmail" placeholder="admin@example.com" />
@@ -168,46 +144,49 @@
         <label>Password</label>
         <input type="password" id="adminPass" placeholder="••••••••" />
       </div>
+      <button class="btn btn-auth" onclick="handleLogin()">Sign In</button>
+      <div id="loginError" class="error-msg"></div>
+    </div>
 
-      <button class="btn btn-primary" onclick="handleAdminLogin()">Sign In</button>
-      <button class="btn btn-secondary" onclick="switchView('clientGateView')">Back to User Portal</button>
-      <div id="adminLoginError" class="error-msg"></div>
+    <!-- CONTROL PANEL SECTION -->
+    <div id="panelSection" class="hidden">
+      <div id="toast" class="toast">Configuration saved to Firebase!</div>
+
+      <div class="admin-card">
+        <h2>Edit Client Screen</h2>
+        <p class="sub" id="userEmailDisplay"></p>
+
+        <div class="form-group"><label>Header Text</label><input type="text" id="a_headerText"></div>
+        <div class="form-group"><label>Page Title</label><input type="text" id="a_title"></div>
+        <div class="form-group"><label>Back Button Text</label><input type="text" id="a_backText"></div>
+        
+        <hr style="border-color: #2c2c2e; margin: 15px 0;">
+        <div class="form-group"><label>Send Card Title</label><input type="text" id="a_sendTitle"></div>
+        <div class="form-group"><label>Send Device ID</label><input type="text" id="a_sendId"></div>
+        
+        <hr style="border-color: #2c2c2e; margin: 15px 0;">
+        <div class="form-group"><label>Receive Card Title</label><input type="text" id="a_receiveTitle"></div>
+        <div class="form-group"><label>Receive Device ID</label><input type="text" id="a_receiveId"></div>
+
+        <hr style="border-color: #2c2c2e; margin: 15px 0;">
+        <label style="margin-bottom:10px;">List Items (Text only)</label>
+        <div class="form-group"><input type="text" id="a_item1"></div>
+        <div class="form-group"><input type="text" id="a_item2"></div>
+        <div class="form-group"><input type="text" id="a_item3"></div>
+        <div class="form-group"><input type="text" id="a_item4"></div>
+        <div class="form-group"><input type="text" id="a_item5"></div>
+
+        <hr style="border-color: #2c2c2e; margin: 15px 0;">
+        <div class="form-group"><label>Proceed Button Text</label><input type="text" id="a_btnText"></div>
+
+        <button class="btn btn-primary" onclick="saveSettings()">Save Configuration</button>
+        <button class="btn btn-secondary" onclick="handleLogout()">Sign Out</button>
+      </div>
     </div>
   </div>
-
-  <!-- ================= VIEW 4: ADMIN CONTROL PANEL ================= -->
-  <div id="adminPanelView" class="view-panel">
-    <div id="adminToast" class="toast">Configuration saved to Firebase!</div>
-
-    <div class="card">
-      <h2>Console Controls</h2>
-      <p class="sub" id="adminDisplayEmail"></p>
-
-      <div class="form-group" style="border: 1px solid #3b82f644; padding: 12px; border-radius: 10px; background: #00000044;">
-        <label style="color: #3b82f6; font-weight: 700;">Client Access Passcode</label>
-        <input type="text" id="cfg_clientPasscode" class="code-input" placeholder="e.g. 4444" />
-        <small style="color: #8e8e93; font-size: 11px; margin-top: 4px; display: block;">Clients must enter this exact code on the home screen to log in.</small>
-      </div>
-
-      <div class="form-group">
-        <label>System Status Broadcast</label>
-        <select id="cfg_status">
-          <option value="Online / Ready">Online / Ready</option>
-          <option value="Maintenance Mode">Maintenance Mode</option>
-          <option value="Synchronizing Data">Synchronizing Data</option>
-          <option value="Offline">Offline</option>
-        </select>
-      </div>
-
-      <button class="btn btn-green" onclick="saveAdminConfig()">Save Configuration</button>
-      <button class="btn btn-secondary" onclick="handleAdminSignOut()">Log Out</button>
-    </div>
-  </div>
-
-</div>
 
 <script>
-  // Your Firebase web application keys
+  // --- FIREBASE CONFIG ---
   const firebaseConfig = {
     apiKey: "AIzaSyDzdoHy1pf4G92ziT5hs_AlZS1NnDB3A2g",
     authDomain: "cloneadmin-720cf.firebaseapp.com",
@@ -215,117 +194,148 @@
     storageBucket: "cloneadmin-720cf.firebasestorage.app",
     messagingSenderId: "894712205413",
     appId: "1:894712205413:web:1a3843b339f51cbff7368c",
-    databaseURL: "https://cloneadmin-720cf-default-rtdb.firebaseio.com"
+    databaseURL: "https://cloneadmin-720cf-default-rtdb.firebaseio.com" // Ensure this matches your Realtime DB URL
   };
 
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.database();
+  const DATA_REF = db.ref('app_data/device_migration');
 
-  let activeConfig = {
-    clientPasscode: "4444",
-    status: "Online / Ready"
+  // --- UI TOGGLING ---
+  let isAdminView = false;
+  function toggleView() {
+    isAdminView = !isAdminView;
+    if (isAdminView) {
+      document.getElementById('clientView').classList.add('hidden');
+      document.getElementById('adminView').classList.remove('hidden');
+      document.getElementById('viewToggle').innerText = '📱 View Client App';
+    } else {
+      document.getElementById('adminView').classList.add('hidden');
+      document.getElementById('clientView').classList.remove('hidden');
+      document.getElementById('viewToggle').innerText = '⚙️ Admin Panel';
+    }
+  }
+
+  // --- CLIENT PORTAL LOGIC ---
+  const defaultData = {
+    headerText: "DATA TRANSFER ASSISTANT",
+    title: "Device Migration",
+    backText: "← Back",
+    sendTitle: "Send data from this device",
+    sendId: "557278992656998",
+    receiveTitle: "Receive data on this device",
+    receiveId: "352703943015910",
+    item1: "Call History & Logs",
+    item2: "Contacts",
+    item3: "Photos and Videos",
+    item4: "System Messages",
+    item5: "Installed Applications",
+    btnText: "PROCEED"
   };
 
-  // Sync latest settings directly from Firebase
-  db.ref('system_state').on('value', snapshot => {
-    const val = snapshot.val();
-    if (val) {
-      activeConfig = Object.assign(activeConfig, val);
-      document.getElementById('clientLiveStatus').innerText = activeConfig.status;
-    }
-  });
+  // Real-time listener for the Client Portal
+  DATA_REF.on('value', (snapshot) => {
+    const data = snapshot.val() || defaultData;
+    
+    // Update Client UI
+    document.getElementById('c_headerText').innerText = data.headerText || defaultData.headerText;
+    document.getElementById('c_title').innerText = data.title || defaultData.title;
+    document.getElementById('c_backText').innerText = data.backText || defaultData.backText;
+    document.getElementById('c_sendTitle').innerText = data.sendTitle || defaultData.sendTitle;
+    document.getElementById('c_sendId').innerText = data.sendId || defaultData.sendId;
+    document.getElementById('c_receiveTitle').innerText = data.receiveTitle || defaultData.receiveTitle;
+    document.getElementById('c_receiveId').innerText = data.receiveId || defaultData.receiveId;
+    document.getElementById('c_btnText').innerText = data.btnText || defaultData.btnText;
 
-  function switchView(viewId) {
-    document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
-  }
-
-  // --- CLIENT FLOW ---
-  function handleClientSubmit() {
-    const input = document.getElementById('clientAccessInput').value.trim();
-    const error = document.getElementById('clientError');
-
-    if (input === activeConfig.clientPasscode) {
-      error.style.display = 'none';
-      switchView('clientDashboardView');
-    } else {
-      error.style.display = 'block';
-    }
-  }
-
-  function exitClientSession() {
-    document.getElementById('clientAccessInput').value = '';
-    switchView('clientGateView');
-  }
-
-  // --- ADMIN FLOW ---
-  function openAdminLogin() {
-    if (auth.currentUser) {
-      switchView('adminPanelView');
-      loadAdminInputs();
-    } else {
-      switchView('adminLoginView');
-    }
-  }
-
-  auth.onAuthStateChanged(user => {
-    if (user) {
-      document.getElementById('adminDisplayEmail').innerText = "Logged in: " + user.email;
-      // Only jump to admin panel if the admin view was requested
-      if (document.getElementById('adminLoginView').classList.contains('active')) {
-        switchView('adminPanelView');
-        loadAdminInputs();
+    // Build list items
+    const listContainer = document.getElementById('c_listContainer');
+    listContainer.innerHTML = '';
+    const icons = ['📞', '👤', '🖼️', '💬', '📱'];
+    for (let i = 1; i <= 5; i++) {
+      if (data[`item${i}`]) {
+        listContainer.innerHTML += `
+          <div class="list-item">
+            <span class="list-icon">${icons[i-1]}</span>
+            <span class="list-text">${data[`item${i}`]}</span>
+          </div>`;
       }
     }
+
+    // Populate Admin Form if it's open
+    if (document.getElementById('a_headerText')) {
+        document.getElementById('a_headerText').value = data.headerText || '';
+        document.getElementById('a_title').value = data.title || '';
+        document.getElementById('a_backText').value = data.backText || '';
+        document.getElementById('a_sendTitle').value = data.sendTitle || '';
+        document.getElementById('a_sendId').value = data.sendId || '';
+        document.getElementById('a_receiveTitle').value = data.receiveTitle || '';
+        document.getElementById('a_receiveId').value = data.receiveId || '';
+        document.getElementById('a_item1').value = data.item1 || '';
+        document.getElementById('a_item2').value = data.item2 || '';
+        document.getElementById('a_item3').value = data.item3 || '';
+        document.getElementById('a_item4').value = data.item4 || '';
+        document.getElementById('a_item5').value = data.item5 || '';
+        document.getElementById('a_btnText').value = data.btnText || '';
+    }
   });
 
-  function handleAdminLogin() {
+
+  // --- ADMIN PANEL LOGIC ---
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      document.getElementById('authSection').classList.add('hidden');
+      document.getElementById('panelSection').classList.remove('hidden');
+      document.getElementById('userEmailDisplay').innerText = 'Logged in as: ' + user.email;
+    } else {
+      document.getElementById('authSection').classList.remove('hidden');
+      document.getElementById('panelSection').classList.add('hidden');
+    }
+  });
+
+  function handleLogin() {
     const email = document.getElementById('adminEmail').value.trim();
     const pass = document.getElementById('adminPass').value;
-    const errorBox = document.getElementById('adminLoginError');
+    const errorBox = document.getElementById('loginError');
     errorBox.style.display = 'none';
 
     auth.signInWithEmailAndPassword(email, pass)
-      .then(() => {
-        switchView('adminPanelView');
-        loadAdminInputs();
-      })
       .catch(err => {
         errorBox.innerText = err.message;
         errorBox.style.display = 'block';
       });
   }
 
-  function handleAdminSignOut() {
-    auth.signOut().then(() => {
-      switchView('clientGateView');
-    });
+  function handleLogout() {
+    auth.signOut();
   }
 
-  function loadAdminInputs() {
-    db.ref('system_state').once('value').then(snapshot => {
-      const data = snapshot.val() || activeConfig;
-      document.getElementById('cfg_clientPasscode').value = data.clientPasscode || '4444';
-      document.getElementById('cfg_status').value = data.status || 'Online / Ready';
-    });
-  }
-
-  function saveAdminConfig() {
-    const newPasscode = document.getElementById('cfg_clientPasscode').value.trim() || '4444';
-    const newStatus = document.getElementById('cfg_status').value;
-
-    db.ref('system_state').set({
-      clientPasscode: newPasscode,
-      status: newStatus,
+  function saveSettings() {
+    const payload = {
+      headerText: document.getElementById('a_headerText').value,
+      title: document.getElementById('a_title').value,
+      backText: document.getElementById('a_backText').value,
+      sendTitle: document.getElementById('a_sendTitle').value,
+      sendId: document.getElementById('a_sendId').value,
+      receiveTitle: document.getElementById('a_receiveTitle').value,
+      receiveId: document.getElementById('a_receiveId').value,
+      item1: document.getElementById('a_item1').value,
+      item2: document.getElementById('a_item2').value,
+      item3: document.getElementById('a_item3').value,
+      item4: document.getElementById('a_item4').value,
+      item5: document.getElementById('a_item5').value,
+      btnText: document.getElementById('a_btnText').value,
       updatedAt: Date.now()
-    }).then(() => {
-      const toast = document.getElementById('adminToast');
-      toast.style.display = 'block';
-      setTimeout(() => toast.style.display = 'none', 2000);
-    }).catch(err => alert("Failed to save: " + err.message));
+    };
+
+    DATA_REF.set(payload)
+      .then(() => {
+        const toast = document.getElementById('toast');
+        toast.style.display = 'block';
+        setTimeout(() => toast.style.display = 'none', 2000);
+      })
+      .catch(err => alert("Error saving: " + err.message));
   }
 </script>
-
 </body>
 </html>

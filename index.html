@@ -101,7 +101,6 @@
     .timer-label { color: #8e8e93; font-size: 14px; margin-bottom: 40px; }
 
     /* --- Admin Panel Styles --- */
-    .admin-toggle { position: absolute; top: 20px; right: 20px; color: #8e8e93; cursor: pointer; font-size: 14px; text-decoration: underline; z-index: 999; }
     .admin-card { background-color: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 16px; padding: 24px 20px; margin-bottom: 16px; }
     .admin-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
     .admin-card p.sub { font-size: 13px; color: #8e8e93; margin-bottom: 20px; }
@@ -117,36 +116,9 @@
     .btn-auth { background-color: #3b82f6; color: #ffffff; }
     .btn-secondary { background-color: #2c2c2e; color: #ffffff; margin-top: 10px; }
     .error-msg { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
-
-    /* --- Fixed Toast Notification --- */
-    .toast {
-      display: none;
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10000;
-      background-color: #22c55e;
-      color: #ffffff;
-      padding: 14px 24px;
-      border-radius: 30px;
-      font-size: 14px;
-      text-align: center;
-      font-weight: 600;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      width: 90%;
-      max-width: 400px;
-    }
-    .toast.error { background-color: #ef4444; }
   </style>
 </head>
 <body>
-
-  <!-- FIXED TOAST NOTIFICATION -->
-  <div id="toast" class="toast">Configuration saved to Firebase!</div>
-
-  <!-- TOGGLE BUTTON -->
-  <div class="admin-toggle" id="viewToggle" onclick="toggleView()">⚙️ Admin Panel</div>
 
   <!-- ================= ACTIVATION SCREEN ================= -->
   <div id="activationView" class="overlay">
@@ -160,7 +132,7 @@
       <div id="activationError" class="error-msg" style="text-align:center;"></div>
       
       <div style="margin-top: 24px; font-size: 14px;">
-        <span style="color: #3b82f6; cursor: pointer; font-weight: 500;" onclick="toggleView()">Login as Admin</span>
+        <span style="color: #3b82f6; cursor: pointer; font-weight: 500;" onclick="showAdminView()">Login as Admin</span>
       </div>
     </div>
   </div>
@@ -188,21 +160,9 @@
 
     <div class="list-container" id="c_listContainer"></div>
 
-    <button class="proceed-btn" id="c_btnText" onclick="showTimerSetup()">PROCEED</button>
+    <!-- Changed to directly start the timer -->
+    <button class="proceed-btn" id="c_btnText" onclick="startMigrationProcess()">PROCEED</button>
     <br><br>
-  </div>
-
-  <!-- ================= TIMER SETUP SCREEN ================= -->
-  <div id="timerSetupView" class="overlay hidden">
-    <div class="auth-box" style="background:#1c1c1e; padding:30px; border-radius:20px; width:100%; max-width:400px; text-align:center;">
-      <h2 style="margin-bottom:10px; font-size:24px;">Set Timer</h2>
-      <p style="color:#8e8e93; margin-bottom:20px; font-size:14px;">How many minutes should the migration take?</p>
-      <div class="form-group" style="margin-bottom:20px;">
-        <input type="number" id="timerMinutes" placeholder="e.g. 5" min="1" max="120" style="text-align:center; font-size:18px;" />
-      </div>
-      <button class="btn btn-primary" onclick="startTimer()">Start Migration</button>
-      <button class="btn btn-secondary" onclick="hideTimerSetup()">Cancel</button>
-    </div>
   </div>
 
   <!-- ================= ANIMATED TIMER SCREEN ================= -->
@@ -225,7 +185,7 @@
       <button class="btn btn-auth" onclick="handleLogin()">Sign In</button>
       <div id="loginError" class="error-msg"></div>
       <div style="margin-top: 20px; text-align: center;">
-        <span style="color: #8e8e93; cursor: pointer; font-size: 14px; text-decoration: underline;" onclick="toggleView()">← Back to Client App</span>
+        <span style="color: #8e8e93; cursor: pointer; font-size: 14px; text-decoration: underline;" onclick="showClientView()">← Back to Client App</span>
       </div>
     </div>
 
@@ -237,6 +197,12 @@
         <div class="form-group">
           <label>🔑 Activation Code (Required to open client)</label>
           <input type="text" id="a_activationCode" placeholder="e.g. 1234" style="border-color: #f59e0b;" />
+        </div>
+        
+        <!-- NEW TIMER SETTING ADDED HERE -->
+        <div class="form-group">
+          <label>⏱️ Timer Duration (Minutes)</label>
+          <input type="number" id="a_timerMinutes" placeholder="e.g. 10" min="1" style="border-color: #3b82f6;" />
         </div>
         <hr style="border-color: #2c2c2e; margin: 15px 0;">
 
@@ -278,7 +244,6 @@
     storageBucket: "cloneadmin-720cf.firebasestorage.app",
     messagingSenderId: "894712205413",
     appId: "1:894712205413:web:1a3843b339f51cbff7368c",
-    // IMPORTANT: Ensure this URL matches the Realtime Database URL in your Firebase Console
     databaseURL: "https://cloneadmin-720cf-default-rtdb.firebaseio.com" 
   };
 
@@ -288,45 +253,28 @@
   const DATA_REF = db.ref('app_data/device_migration');
 
   // Global State
-  let isAdminView = false;
   let currentActivationCode = "1234"; // Default fallback
+  let globalTimerMinutes = 5; // Default fallback if admin hasn't set it
   let timerInterval = null;
   let totalSeconds = 0;
   let currentSeconds = 0;
 
-  // --- HELPER: Show Toast ---
-  function showToast(message, isError = false) {
-    const toast = document.getElementById('toast');
-    toast.innerText = message;
-    toast.style.display = 'block';
-    if (isError) {
-      toast.classList.add('error');
-    } else {
-      toast.classList.remove('error');
-    }
-    setTimeout(() => {
-      toast.style.display = 'none';
-    }, 3000);
+  // --- UI TOGGLING (Replaced by direct functions) ---
+  function showAdminView() {
+    document.getElementById('clientView').classList.add('hidden');
+    document.getElementById('activationView').classList.add('hidden');
+    document.getElementById('timerView').classList.add('hidden');
+    document.getElementById('adminView').classList.remove('hidden');
   }
 
-  // --- UI TOGGLING ---
-  function toggleView() {
-    isAdminView = !isAdminView;
-    if (isAdminView) {
-      document.getElementById('clientView').classList.add('hidden');
+  function showClientView() {
+    document.getElementById('adminView').classList.add('hidden');
+    if (sessionStorage.getItem('isActivated') === 'true') {
+      document.getElementById('clientView').classList.remove('hidden');
       document.getElementById('activationView').classList.add('hidden');
-      document.getElementById('adminView').classList.remove('hidden');
-      document.getElementById('viewToggle').innerText = '📱 View Client App';
     } else {
-      document.getElementById('adminView').classList.add('hidden');
-      if (sessionStorage.getItem('isActivated') === 'true') {
-        document.getElementById('clientView').classList.remove('hidden');
-        document.getElementById('activationView').classList.add('hidden');
-      } else {
-        document.getElementById('activationView').classList.remove('hidden');
-        document.getElementById('clientView').classList.add('hidden');
-      }
-      document.getElementById('viewToggle').innerText = '⚙️ Admin Panel';
+      document.getElementById('activationView').classList.remove('hidden');
+      document.getElementById('clientView').classList.add('hidden');
     }
   }
 
@@ -346,30 +294,20 @@
     }
   }
 
-  // --- TIMER LOGIC ---
-  function showTimerSetup() {
-    document.getElementById('clientView').classList.add('hidden');
-    document.getElementById('timerSetupView').classList.remove('hidden');
-  }
-
-  function hideTimerSetup() {
-    document.getElementById('timerSetupView').classList.add('hidden');
-    document.getElementById('clientView').classList.remove('hidden');
-  }
-
-  function startTimer() {
-    const minutesInput = document.getElementById('timerMinutes').value;
-    const minutes = parseInt(minutesInput, 10);
-
-    if (isNaN(minutes) || minutes <= 0) {
-      alert("Please enter a valid number of minutes.");
+  // --- TIMER LOGIC (Now handled by Admin settings) ---
+  function startMigrationProcess() {
+    if (!globalTimerMinutes || globalTimerMinutes <= 0) {
+      alert("The administrator has not set a valid timer duration yet.");
       return;
     }
+    startTimer(globalTimerMinutes);
+  }
 
+  function startTimer(minutes) {
     totalSeconds = minutes * 60;
     currentSeconds = totalSeconds;
 
-    document.getElementById('timerSetupView').classList.add('hidden');
+    document.getElementById('clientView').classList.add('hidden');
     document.getElementById('timerView').classList.remove('hidden');
     
     updateTimerDisplay();
@@ -403,7 +341,6 @@
     if (timerInterval) clearInterval(timerInterval);
     document.getElementById('timerView').classList.add('hidden');
     document.getElementById('clientView').classList.remove('hidden');
-    document.getElementById('timerMinutes').value = '';
   }
 
   // --- CLIENT PORTAL DATA SYNC ---
@@ -413,12 +350,13 @@
     receiveTitle: "Receive data on this device", receiveId: "352703943015910",
     item1: "Call History & Logs", item2: "Contacts", item3: "Photos and Videos",
     item4: "System Messages", item5: "Installed Applications", btnText: "PROCEED",
-    activationCode: "1234"
+    activationCode: "1234", timerMinutes: 5
   };
 
   DATA_REF.on('value', (snapshot) => {
     const data = snapshot.val() || defaultData;
     currentActivationCode = data.activationCode || defaultData.activationCode;
+    globalTimerMinutes = data.timerMinutes || defaultData.timerMinutes;
     
     // Update Client UI
     document.getElementById('c_headerText').innerText = data.headerText || defaultData.headerText;
@@ -459,6 +397,7 @@
         document.getElementById('a_item5').value = data.item5 || '';
         document.getElementById('a_btnText').value = data.btnText || '';
         document.getElementById('a_activationCode').value = data.activationCode || defaultData.activationCode;
+        document.getElementById('a_timerMinutes').value = data.timerMinutes || defaultData.timerMinutes;
     }
   });
 
@@ -489,12 +428,13 @@
 
   function handleLogout() {
     auth.signOut();
+    showClientView(); // Send back to client view upon logout
   }
 
   function saveSettings() {
-    // Collect data with fallbacks to prevent null errors
     const payload = {
       activationCode: document.getElementById('a_activationCode').value.trim() || "1234",
+      timerMinutes: parseInt(document.getElementById('a_timerMinutes').value, 10) || 5,
       headerText: document.getElementById('a_headerText').value,
       title: document.getElementById('a_title').value,
       backText: document.getElementById('a_backText').value,
@@ -511,14 +451,14 @@
       updatedAt: Date.now()
     };
 
-    // Save to Firebase Realtime Database
     DATA_REF.set(payload)
       .then(() => {
-        showToast("Configuration saved successfully!");
+        // This ensures a popup ALWAYS shows on success
+        alert("✅ Configuration saved successfully!");
       })
       .catch(err => {
         console.error("Firebase Save Error: ", err);
-        showToast("Error saving: " + err.message, true);
+        alert("❌ Error saving: " + err.message);
       });
   }
 </script>

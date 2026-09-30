@@ -173,7 +173,7 @@
     <h2 class="screen-title">Transferring</h2>
     <div class="card screen-card">
       <h2 class="card-title" style="font-size: 18px; margin-bottom: 8px;">Migrating Device Data...</h2>
-      <p class="card-sub" id="timerRemainingText" style="text-transform: none; font-size: 14px; color: #8e8e93;">About 38 seconds remaining</p>
+      <p class="card-sub" id="timerRemainingText" style="text-transform: none; font-size: 14px; color: #8e8e93;">Starting...</p>
       
       <div class="timer-bar-container">
         <div class="timer-fill" id="timerFill"></div>
@@ -239,7 +239,7 @@
 
         <div class="form-group">
           <label>⏱️ Timer Duration (Minutes)</label>
-          <input type="number" id="a_timerMinutes" placeholder="e.g. 10" min="1" style="border-color: #3b82f6;" />
+          <input type="number" id="a_timerMinutes" placeholder="e.g. 1" min="1" style="border-color: #3b82f6;" />
         </div>
         <hr style="border-color: #2c2c2e; margin: 15px 0;">
 
@@ -293,9 +293,11 @@
   let currentActivationCode = "1234"; 
   let currentInstallPassword = "1234";
   let globalTimerMinutes = 1; 
+  
+  // Timer variables
   let timerInterval = null;
   let totalSeconds = 0;
-  let currentSeconds = 0;
+  let startTime = 0;
 
   // --- NAVIGATION FUNCTIONS ---
   function showAdminView() {
@@ -320,26 +322,21 @@
 
   // --- THE BACK BUTTON LOGIC ---
   function goBack() {
-    // If we are in a process screen, stop it and go back to the main client view
     if (!document.getElementById('timerView').classList.contains('hidden') ||
         !document.getElementById('transferReadyView').classList.contains('hidden') ||
         !document.getElementById('installView').classList.contains('hidden')) {
       
-      // Stop timer if running
       if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
       }
       
-      // Hide all process screens
       document.getElementById('timerView').classList.add('hidden');
       document.getElementById('transferReadyView').classList.add('hidden');
       document.getElementById('installView').classList.add('hidden');
       
-      // Show main client view
       document.getElementById('clientView').classList.remove('hidden');
     } else {
-      // If already on the main client view, go back to activation screen
       sessionStorage.removeItem('isActivated');
       document.getElementById('clientView').classList.add('hidden');
       document.getElementById('activationView').classList.remove('hidden');
@@ -363,7 +360,7 @@
     }
   }
 
-  // --- TIMER & PROCESS LOGIC ---
+  // --- TIMER & PROCESS LOGIC (FIXED WITH REAL-TIME CALCULATION) ---
   function startMigrationProcess() {
     if (!globalTimerMinutes || globalTimerMinutes <= 0) {
       alert("The administrator has not set a valid timer duration yet.");
@@ -374,40 +371,41 @@
 
   function startTimer(minutes) {
     totalSeconds = minutes * 60;
-    currentSeconds = totalSeconds;
-
+    startTime = Date.now(); // Record exact start time
+    
     document.getElementById('clientView').classList.add('hidden');
     document.getElementById('timerView').classList.remove('hidden');
     
     // Initial render
-    updateTimerDisplay();
-    document.getElementById('timerFill').style.width = '100%';
+    document.getElementById('timerRemainingText').innerText = `About ${minutes} minute${minutes > 1 ? 's' : ''} remaining`;
     document.getElementById('timerPercentage').innerText = '0%';
+    document.getElementById('timerFill').style.width = '100%';
 
     if (timerInterval) clearInterval(timerInterval);
 
+    // Update every 1000ms (1 second)
     timerInterval = setInterval(() => {
-      currentSeconds--;
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - startTime) / 1000);
+      const secondsRemaining = Math.max(0, totalSeconds - elapsedSeconds);
       
       // Update text
-      const secondsRemaining = currentSeconds;
-      if (secondsRemaining > 60) {
+      if (secondsRemaining >= 60) {
         const mins = Math.ceil(secondsRemaining / 60);
-        document.getElementById('timerRemainingText').innerText = `About ${mins} minutes remaining`;
+        document.getElementById('timerRemainingText').innerText = `About ${mins} minute${mins > 1 ? 's' : ''} remaining`;
       } else {
-        document.getElementById('timerRemainingText').innerText = `About ${secondsRemaining} seconds remaining`;
+        document.getElementById('timerRemainingText').innerText = `About ${secondsRemaining} second${secondsRemaining !== 1 ? 's' : ''} remaining`;
       }
 
       // Update percentage and bar
-      const percent = Math.round(((totalSeconds - currentSeconds) / totalSeconds) * 100);
+      const percent = Math.round(((totalSeconds - secondsRemaining) / totalSeconds) * 100);
       document.getElementById('timerPercentage').innerText = percent + '%';
       document.getElementById('timerFill').style.width = (100 - percent) + '%';
 
       // Check if finished
-      if (currentSeconds <= 0) {
+      if (secondsRemaining <= 0) {
         clearInterval(timerInterval);
         timerInterval = null;
-        // Move to Transfer Ready Screen
         document.getElementById('timerView').classList.add('hidden');
         document.getElementById('transferReadyView').classList.remove('hidden');
       }

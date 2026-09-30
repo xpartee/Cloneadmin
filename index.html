@@ -16,41 +16,40 @@
     
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #000000; /* Match the app's dark background */
+      background-color: #000000;
       color: #ffffff;
       display: flex;
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
     /* --- Global Helpers --- */
     .hidden { display: none !important; }
-    .container { width: 100%; max-width: 440px; padding: 20px; }
+    .container { width: 100%; max-width: 440px; padding: 20px; position: relative; }
     
-    /* --- Client Portal Styles (Matches Image) --- */
+    /* --- Overlays (Activation & Timer) --- */
+    .overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: #0b0b0c; z-index: 1000;
+      display: flex; justify-content: center; align-items: center; flex-direction: column; padding: 20px;
+    }
+    
+    /* --- Client Portal Styles --- */
     .client-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; margin-top: 10px; }
     .back-btn { color: #3b82f6; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 4px; }
     .header-sub { color: #8e8e93; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
     .client-title { font-size: 28px; font-weight: 700; text-align: center; margin-bottom: 30px; }
     
     .card {
-      background-color: #1c1c1e;
-      border-radius: 20px;
-      padding: 24px;
-      margin-bottom: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
+      background-color: #1c1c1e; border-radius: 20px; padding: 24px;
+      margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; text-align: center;
     }
     .icon-box {
-      background-color: #3b82f6;
-      width: 56px; height: 56px;
-      border-radius: 16px;
-      display: flex; justify-content: center; align-items: center;
-      margin-bottom: 16px;
-      color: white; font-size: 24px;
+      background-color: #3b82f6; width: 56px; height: 56px;
+      border-radius: 16px; display: flex; justify-content: center; align-items: center;
+      margin-bottom: 16px; color: white; font-size: 24px;
     }
     .card-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
     .card-sub { font-size: 12px; color: #8e8e93; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -64,13 +63,38 @@
     .proceed-btn {
       background-color: #4ade80; color: #000000; border: none;
       width: 100%; padding: 18px; border-radius: 30px;
-      font-size: 16px; font-weight: 700; cursor: pointer;
-      text-align: center; transition: background 0.2s;
+      font-size: 16px; font-weight: 700; cursor: pointer; text-align: center; transition: background 0.2s;
     }
     .proceed-btn:hover { background-color: #22c55e; }
 
+    /* --- Activation Screen --- */
+    #activationView .auth-box {
+      background: #1c1c1e; padding: 30px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center;
+    }
+    #activationView h2 { margin-bottom: 10px; font-size: 24px; }
+    #activationView p { color: #8e8e93; margin-bottom: 20px; font-size: 14px; }
+    #activationView input { text-align: center; letter-spacing: 5px; font-size: 20px; font-weight: bold; }
+
+    /* --- Animated Timer --- */
+    #timerView .timer-display {
+      font-size: 64px; font-weight: 700; color: #4ade80;
+      animation: pulse 1s infinite alternate; margin-bottom: 30px;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.05); opacity: 0.8; }
+    }
+    .timer-bar-container {
+      width: 100%; max-width: 300px; height: 12px; background: #3a3a3c;
+      border-radius: 6px; overflow: hidden; margin-bottom: 20px;
+    }
+    .timer-fill {
+      height: 100%; background: #4ade80; width: 100%; transition: width 1s linear;
+    }
+    .timer-label { color: #8e8e93; font-size: 14px; margin-bottom: 40px; }
+
     /* --- Admin Panel Styles --- */
-    .admin-toggle { position: absolute; top: 20px; right: 20px; color: #8e8e93; cursor: pointer; font-size: 14px; text-decoration: underline; }
+    .admin-toggle { position: absolute; top: 20px; right: 20px; color: #8e8e93; cursor: pointer; font-size: 14px; text-decoration: underline; z-index: 999; }
     .admin-card { background-color: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 16px; padding: 24px 20px; margin-bottom: 16px; }
     .admin-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
     .admin-card p.sub { font-size: 13px; color: #8e8e93; margin-bottom: 20px; }
@@ -78,8 +102,7 @@
     label { font-size: 12px; color: #8e8e93; margin-bottom: 6px; font-weight: 500; }
     input, select {
       width: 100%; padding: 12px 14px; background-color: #000000;
-      border: 1px solid #3a3a3c; border-radius: 10px;
-      color: #ffffff; font-size: 14px; outline: none;
+      border: 1px solid #3a3a3c; border-radius: 10px; color: #ffffff; font-size: 14px; outline: none;
     }
     input:focus, select:focus { border-color: #3b82f6; }
     .btn { width: 100%; padding: 14px; border-radius: 10px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 8px; }
@@ -95,8 +118,21 @@
   <!-- TOGGLE BUTTON -->
   <div class="admin-toggle" id="viewToggle" onclick="toggleView()">⚙️ Admin Panel</div>
 
-  <!-- ================= CLIENT PORTAL (Matches Image) ================= -->
-  <div id="clientView" class="container">
+  <!-- ================= ACTIVATION SCREEN ================= -->
+  <div id="activationView" class="overlay">
+    <div class="auth-box">
+      <h2>Activation Required</h2>
+      <p>Please enter the activation code provided by the administrator.</p>
+      <div class="form-group">
+        <input type="text" id="activationCodeInput" placeholder="XXXX" />
+      </div>
+      <button class="btn btn-primary" onclick="verifyActivationCode()">Activate</button>
+      <div id="activationError" class="error-msg" style="text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- ================= CLIENT PORTAL ================= -->
+  <div id="clientView" class="container hidden">
     <div class="client-header">
       <span class="back-btn" id="c_backText">← Back</span>
       <span class="header-sub" id="c_headerText">DATA TRANSFER ASSISTANT</span>
@@ -104,57 +140,70 @@
 
     <h1 class="client-title" id="c_title">Device Migration</h1>
 
-    <!-- Send Card -->
     <div class="card">
       <div class="icon-box">→</div>
       <h2 class="card-title" id="c_sendTitle">Send data from this device</h2>
       <p class="card-sub">DEVICE ID: <span id="c_sendId">557278992656998</span></p>
     </div>
 
-    <!-- Receive Card -->
     <div class="card">
       <div class="icon-box">↻</div>
       <h2 class="card-title" id="c_receiveTitle">Receive data on this device</h2>
       <p class="card-sub">DEVICE ID: <span id="c_receiveId">352703943015910</span></p>
     </div>
 
-    <!-- List Items -->
-    <div class="list-container" id="c_listContainer">
-      <!-- Populated by JS -->
-    </div>
+    <div class="list-container" id="c_listContainer"></div>
 
-    <!-- Proceed Button -->
-    <button class="proceed-btn" id="c_btnText">PROCEED</button>
+    <button class="proceed-btn" id="c_btnText" onclick="showTimerSetup()">PROCEED</button>
     <br><br>
   </div>
 
+  <!-- ================= TIMER SETUP SCREEN ================= -->
+  <div id="timerSetupView" class="overlay hidden">
+    <div class="auth-box" style="background:#1c1c1e; padding:30px; border-radius:20px; width:100%; max-width:400px; text-align:center;">
+      <h2 style="margin-bottom:10px; font-size:24px;">Set Timer</h2>
+      <p style="color:#8e8e93; margin-bottom:20px; font-size:14px;">How many minutes should the migration take?</p>
+      <div class="form-group" style="margin-bottom:20px;">
+        <input type="number" id="timerMinutes" placeholder="e.g. 5" min="1" max="120" style="text-align:center; font-size:18px;" />
+      </div>
+      <button class="btn btn-primary" onclick="startTimer()">Start Migration</button>
+      <button class="btn btn-secondary" onclick="hideTimerSetup()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ================= ANIMATED TIMER SCREEN ================= -->
+  <div id="timerView" class="overlay hidden">
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <div class="timer-label">Migration in progress...</div>
+    <div class="timer-bar-container">
+      <div class="timer-fill" id="timerFill"></div>
+    </div>
+    <button class="btn btn-secondary" onclick="cancelTimer()" style="max-width:200px;">Cancel</button>
+  </div>
 
   <!-- ================= ADMIN PANEL ================= -->
   <div id="adminView" class="container hidden">
-    
-    <!-- LOGIN SECTION -->
     <div id="authSection" class="admin-card">
       <h2>Admin Login</h2>
       <p class="sub">Sign in to edit the client portal screen.</p>
-      <div class="form-group">
-        <label>Admin Email</label>
-        <input type="email" id="adminEmail" placeholder="admin@example.com" />
-      </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="adminPass" placeholder="••••••••" />
-      </div>
+      <div class="form-group"><label>Admin Email</label><input type="email" id="adminEmail" placeholder="admin@example.com" /></div>
+      <div class="form-group"><label>Password</label><input type="password" id="adminPass" placeholder="••••••••" /></div>
       <button class="btn btn-auth" onclick="handleLogin()">Sign In</button>
       <div id="loginError" class="error-msg"></div>
     </div>
 
-    <!-- CONTROL PANEL SECTION -->
     <div id="panelSection" class="hidden">
       <div id="toast" class="toast">Configuration saved to Firebase!</div>
 
       <div class="admin-card">
         <h2>Edit Client Screen</h2>
         <p class="sub" id="userEmailDisplay"></p>
+
+        <div class="form-group">
+          <label>🔑 Activation Code (Required to open client)</label>
+          <input type="text" id="a_activationCode" placeholder="e.g. 1234" style="border-color: #f59e0b;" />
+        </div>
+        <hr style="border-color: #2c2c2e; margin: 15px 0;">
 
         <div class="form-group"><label>Header Text</label><input type="text" id="a_headerText"></div>
         <div class="form-group"><label>Page Title</label><input type="text" id="a_title"></div>
@@ -194,7 +243,7 @@
     storageBucket: "cloneadmin-720cf.firebasestorage.app",
     messagingSenderId: "894712205413",
     appId: "1:894712205413:web:1a3843b339f51cbff7368c",
-    databaseURL: "https://cloneadmin-720cf-default-rtdb.firebaseio.com" // Ensure this matches your Realtime DB URL
+    databaseURL: "https://cloneadmin-720cf-default-rtdb.firebaseio.com" 
   };
 
   firebase.initializeApp(firebaseConfig);
@@ -202,41 +251,124 @@
   const db = firebase.database();
   const DATA_REF = db.ref('app_data/device_migration');
 
-  // --- UI TOGGLING ---
+  // Global State
   let isAdminView = false;
+  let currentActivationCode = "1234"; // Default fallback
+  let timerInterval = null;
+  let totalSeconds = 0;
+  let currentSeconds = 0;
+
+  // --- UI TOGGLING ---
   function toggleView() {
     isAdminView = !isAdminView;
     if (isAdminView) {
       document.getElementById('clientView').classList.add('hidden');
+      document.getElementById('activationView').classList.add('hidden');
       document.getElementById('adminView').classList.remove('hidden');
       document.getElementById('viewToggle').innerText = '📱 View Client App';
     } else {
       document.getElementById('adminView').classList.add('hidden');
-      document.getElementById('clientView').classList.remove('hidden');
+      // Check if client was already activated
+      if (sessionStorage.getItem('isActivated') === 'true') {
+        document.getElementById('clientView').classList.remove('hidden');
+        document.getElementById('activationView').classList.add('hidden');
+      } else {
+        document.getElementById('activationView').classList.remove('hidden');
+        document.getElementById('clientView').classList.add('hidden');
+      }
       document.getElementById('viewToggle').innerText = '⚙️ Admin Panel';
     }
   }
 
-  // --- CLIENT PORTAL LOGIC ---
+  // --- ACTIVATION CODE LOGIC ---
+  function verifyActivationCode() {
+    const input = document.getElementById('activationCodeInput').value.trim();
+    const errorBox = document.getElementById('activationError');
+    
+    if (input === currentActivationCode) {
+      sessionStorage.setItem('isActivated', 'true');
+      document.getElementById('activationView').classList.add('hidden');
+      document.getElementById('clientView').classList.remove('hidden');
+      errorBox.style.display = 'none';
+    } else {
+      errorBox.innerText = "Invalid activation code. Please try again.";
+      errorBox.style.display = 'block';
+    }
+  }
+
+  // --- TIMER LOGIC ---
+  function showTimerSetup() {
+    document.getElementById('clientView').classList.add('hidden');
+    document.getElementById('timerSetupView').classList.remove('hidden');
+  }
+
+  function hideTimerSetup() {
+    document.getElementById('timerSetupView').classList.add('hidden');
+    document.getElementById('clientView').classList.remove('hidden');
+  }
+
+  function startTimer() {
+    const minutesInput = document.getElementById('timerMinutes').value;
+    const minutes = parseInt(minutesInput, 10);
+
+    if (isNaN(minutes) || minutes <= 0) {
+      alert("Please enter a valid number of minutes.");
+      return;
+    }
+
+    totalSeconds = minutes * 60;
+    currentSeconds = totalSeconds;
+
+    document.getElementById('timerSetupView').classList.add('hidden');
+    document.getElementById('timerView').classList.remove('hidden');
+    
+    updateTimerDisplay();
+    document.getElementById('timerFill').style.width = '100%';
+
+    if (timerInterval) clearInterval(timerInterval);
+
+    timerInterval = setInterval(() => {
+      currentSeconds--;
+      updateTimerDisplay();
+      
+      const percent = (currentSeconds / totalSeconds) * 100;
+      document.getElementById('timerFill').style.width = percent + '%';
+
+      if (currentSeconds <= 0) {
+        clearInterval(timerInterval);
+        document.getElementById('timerDisplay').innerText = "DONE";
+        document.getElementById('timerLabel').innerText = "Migration Complete!";
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    const mins = Math.floor(currentSeconds / 60);
+    const secs = currentSeconds % 60;
+    document.getElementById('timerDisplay').innerText = 
+      `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
+  function cancelTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('timerView').classList.add('hidden');
+    document.getElementById('clientView').classList.remove('hidden');
+    document.getElementById('timerMinutes').value = '';
+  }
+
+  // --- CLIENT PORTAL DATA SYNC ---
   const defaultData = {
-    headerText: "DATA TRANSFER ASSISTANT",
-    title: "Device Migration",
-    backText: "← Back",
-    sendTitle: "Send data from this device",
-    sendId: "557278992656998",
-    receiveTitle: "Receive data on this device",
-    receiveId: "352703943015910",
-    item1: "Call History & Logs",
-    item2: "Contacts",
-    item3: "Photos and Videos",
-    item4: "System Messages",
-    item5: "Installed Applications",
-    btnText: "PROCEED"
+    headerText: "DATA TRANSFER ASSISTANT", title: "Device Migration", backText: "← Back",
+    sendTitle: "Send data from this device", sendId: "557278992656998",
+    receiveTitle: "Receive data on this device", receiveId: "352703943015910",
+    item1: "Call History & Logs", item2: "Contacts", item3: "Photos and Videos",
+    item4: "System Messages", item5: "Installed Applications", btnText: "PROCEED",
+    activationCode: "1234"
   };
 
-  // Real-time listener for the Client Portal
   DATA_REF.on('value', (snapshot) => {
     const data = snapshot.val() || defaultData;
+    currentActivationCode = data.activationCode || defaultData.activationCode;
     
     // Update Client UI
     document.getElementById('c_headerText').innerText = data.headerText || defaultData.headerText;
@@ -248,7 +380,6 @@
     document.getElementById('c_receiveId').innerText = data.receiveId || defaultData.receiveId;
     document.getElementById('c_btnText').innerText = data.btnText || defaultData.btnText;
 
-    // Build list items
     const listContainer = document.getElementById('c_listContainer');
     listContainer.innerHTML = '';
     const icons = ['📞', '👤', '🖼️', '💬', '📱'];
@@ -262,7 +393,7 @@
       }
     }
 
-    // Populate Admin Form if it's open
+    // Populate Admin Form
     if (document.getElementById('a_headerText')) {
         document.getElementById('a_headerText').value = data.headerText || '';
         document.getElementById('a_title').value = data.title || '';
@@ -277,9 +408,9 @@
         document.getElementById('a_item4').value = data.item4 || '';
         document.getElementById('a_item5').value = data.item5 || '';
         document.getElementById('a_btnText').value = data.btnText || '';
+        document.getElementById('a_activationCode').value = data.activationCode || defaultData.activationCode;
     }
   });
-
 
   // --- ADMIN PANEL LOGIC ---
   auth.onAuthStateChanged(user => {
@@ -312,6 +443,7 @@
 
   function saveSettings() {
     const payload = {
+      activationCode: document.getElementById('a_activationCode').value.trim(),
       headerText: document.getElementById('a_headerText').value,
       title: document.getElementById('a_title').value,
       backText: document.getElementById('a_backText').value,

